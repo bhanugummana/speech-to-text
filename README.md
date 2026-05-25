@@ -24,6 +24,10 @@ Supports:
 # Features
 
 - 🎤 Speech → Text
+- 🔁 **Continuous Background Dictation**: Speak continuously and it will transcribe and type phrase-by-phrase.
+- 🎛️ **Shortcut Toggling**: Press the shortcut to start, press again to stop.
+- ⏱️ **Inactivity Auto-Stop**: Automatically stops listening if you don't speak for 10 seconds.
+- 🔔 **Integrated System Notifications**: Shows "Listening..." and "Completed" alerts natively.
 - ⌨️ Auto-type into active window
 - 📋 Copy to clipboard
 - 🖥️ CLI-first workflow
@@ -32,7 +36,6 @@ Supports:
 - 🔁 Re-runnable installer
 - ⚡ Global command support
 - 🛣️ Wayland + X11 support
-- 🔔 KDE notification support
 - ⌨️ KDE shortcut support
 
 ---
@@ -156,15 +159,15 @@ Shows internal logs like:
 ## Recommended KDE Shortcut Command
 
 ```bash
-export YDOTOOL_SOCKET="$HOME/.ydotool_socket" && notify-send "SpeechCLI" "🎤 Listening..." && ~/.local/bin/speechcli --type --copy && notify-send "SpeechCLI" "✅ Speech recognition completed"
+export YDOTOOL_SOCKET="$HOME/.ydotool_socket" && ~/.local/bin/speechcli --type --copy
 ```
 
 This command:
 
-- Starts speech recognition
-- Copies recognized text to clipboard
-- Types text into active input field
-- Shows KDE notifications
+- Starts continuous speech recognition (press again to toggle stop)
+- Copies the complete recognized text to your clipboard
+- Types recognized text directly into your active input field
+- Uses native desktop notifications to indicate listening/completion state
 
 ---
 
@@ -320,7 +323,6 @@ pip uninstall SpeechRecognition PyAudio pyperclip
 
 - Offline transcription
 - Whisper support
-- Continuous dictation
 - Wake-word activation
 - AI punctuation
 - GUI tray icon
