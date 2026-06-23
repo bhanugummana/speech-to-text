@@ -1,0 +1,1 @@
+"""SpeechCLI package."""

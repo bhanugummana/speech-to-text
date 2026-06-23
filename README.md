@@ -25,9 +25,11 @@ Supports:
 
 - 🎤 Speech → Text
 - 🔁 **Continuous Background Dictation**: Speak continuously and it will transcribe and type phrase-by-phrase.
+- 📝 **Dictation Commands**: Say punctuation and layout commands like "comma", "period", "new line", and "new paragraph".
 - 🎛️ **Shortcut Toggling**: Press the shortcut to start, press again to stop.
 - ⏱️ **Inactivity Auto-Stop**: Automatically stops listening if you don't speak for 10 seconds.
 - 🔔 **Integrated System Notifications**: Shows "Listening..." and "Completed" alerts natively.
+- 🪟 **Listening Overlay**: Optional always-on-top status window while dictation is active.
 - ⌨️ Auto-type into active window
 - 📋 Copy to clipboard
 - 🖥️ CLI-first workflow
@@ -132,10 +134,145 @@ speechcli --type
 
 ---
 
+## Type with automatic punctuation
+
+```bash
+speechcli --type --auto-punctuation
+```
+
+Automatically adds simple sentence-ending punctuation at phrase boundaries:
+
+- Question mark for phrases starting with words like `who`, `what`, `when`, `where`, `why`, or `how`
+- Period for other phrases
+- Capitalization after sentence-ending punctuation
+
+---
+
+## Type with listening overlay
+
+```bash
+speechcli --type --copy --auto-punctuation --overlay
+```
+
+Shows a small always-on-top status window while dictation is active. The overlay shows whether SpeechCLI is listening or transcribing and previews the current dictated session text.
+
+---
+
+## Choose recognition language
+
+```bash
+speechcli --type --language en-US
+speechcli --type --language hi-IN
+speechcli --type --language kn-IN
+```
+
+Use a BCP-47 language code supported by Google Speech Recognition. The default is `en-US`.
+
+---
+
+## Tune listening behavior
+
+```bash
+speechcli --type --listen-timeout 10 --pause-threshold 1.0
+```
+
+Useful options:
+
+- `--listen-timeout`: seconds to wait for speech to start before auto-stopping
+- `--pause-threshold`: seconds of silence that ends the current dictated phrase
+- `--queue-timeout`: safety timeout while waiting for recorded audio chunks
+
+---
+
+## Choose microphone
+
+```bash
+speechcli --list-microphones
+speechcli --type --device-index 2
+```
+
+Use `--list-microphones` to find the input device index, then pass that index with `--device-index`.
+
+---
+
+## Save dictation defaults
+
+```bash
+speechcli --language en-US --device-index 2 --auto-punctuation --overlay --save-settings
+speechcli --show-settings
+speechcli --type --no-auto-punctuation --no-overlay
+```
+
+Saved settings are stored in `~/.config/speechcli/settings.json` and are used as defaults for future runs. Command-line options still override saved values.
+
+---
+
 ## Everything together
 
 ```bash
-speechcli --type --copy --output
+speechcli --type --copy --output --auto-punctuation --overlay --language en-US --device-index 0 --pause-threshold 1.0
+```
+
+---
+
+# Dictation Commands
+
+SpeechCLI converts common spoken dictation commands before typing or copying text:
+
+| Say | Types |
+| --- | --- |
+| `period` or `full stop` | `.` |
+| `comma` | `,` |
+| `question mark` | `?` |
+| `exclamation mark` or `exclamation point` | `!` |
+| `colon` | `:` |
+| `semicolon` | `;` |
+| `dash` or `hyphen` | `-` |
+| `open quote`, `close quote`, or `quote` | `"` |
+| `new line` or `newline` | line break |
+| `new paragraph` | blank line, then capitalizes the next word |
+| `tab` | tab character |
+| `open parenthesis`, `close parenthesis`, `open bracket`, `close bracket`, `open brace`, or `close brace` | matching bracket character |
+| `slash`, `backslash`, `at sign`, `hashtag`, `dollar sign`, `percent sign`, `ampersand`, `asterisk`, `plus sign`, `equals sign`, or `underscore` | matching symbol |
+| `capitalize` or `cap` | capitalizes the next word |
+| `uppercase`, `upper case`, or `all caps` | uppercases the next word |
+| `lowercase`, `lower case`, or `no caps` | lowercases the next word |
+| `all caps on` or `caps on` | uppercases following dictated words |
+| `all caps off` or `caps off` | turns off all-caps mode |
+| `delete that`, `scratch that`, or `undo that` | removes the previous dictated phrase |
+| `delete last word` or `delete previous word` | removes the previous dictated word |
+| `clear dictation` or `clear text` | removes all text typed during the current dictation session |
+| `press enter`, `enter`, or `press return` | presses Enter |
+| `press tab` or `next field` | presses Tab |
+| `previous field` or `last field` | presses Shift+Tab |
+| `select all` | presses Ctrl+A |
+| `copy` or `copy that` | presses Ctrl+C |
+| `cut` or `cut that` | presses Ctrl+X |
+| `paste` or `paste that` | presses Ctrl+V |
+| `undo` | presses Ctrl+Z |
+| `redo` | presses Ctrl+Y |
+| `backspace` or `press backspace` | presses Backspace |
+| `delete` or `press delete` | presses Delete |
+| `delete selection` or `delete selected text` | presses Backspace |
+| `select previous word` or `select next word` | presses Ctrl+Shift+Left/Right |
+| `select previous character` or `select next character` | presses Shift+Left/Right |
+| `go to beginning`, `move to beginning`, or `press home` | presses Home |
+| `go to end`, `move to end`, or `press end` | presses End |
+| `move left`, `move right`, `move up`, or `move down` | presses the matching arrow key |
+| `press escape` or `escape` | presses Escape |
+| `stop dictation`, `stop listening`, or `cancel dictation` | stops listening |
+
+Example:
+
+```txt
+hello comma new line capitalize world exclamation mark
+```
+
+Types:
+
+```txt
+hello,
+World!
 ```
 
 ---
@@ -159,7 +296,7 @@ Shows internal logs like:
 ## Recommended KDE Shortcut Command
 
 ```bash
-export YDOTOOL_SOCKET="$HOME/.ydotool_socket" && ~/.local/bin/speechcli --type --copy
+export YDOTOOL_SOCKET="$HOME/.ydotool_socket" && ~/.local/bin/speechcli --type --copy --auto-punctuation --overlay --language en-US
 ```
 
 This command:

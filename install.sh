@@ -28,6 +28,7 @@ install_arch() {
     sudo pacman -S --needed \
         python \
         python-pip \
+        tk \
         portaudio \
         xdotool \
         ydotool \
@@ -41,6 +42,7 @@ install_ubuntu() {
     sudo apt install -y \
         python3 \
         python3-pip \
+        python3-tk \
         portaudio19-dev \
         python3-pyaudio \
         xdotool \
@@ -52,6 +54,7 @@ install_fedora() {
     sudo dnf install -y \
         python3 \
         python3-pip \
+        python3-tkinter \
         portaudio-devel \
         xdotool \
         ydotool \
@@ -204,7 +207,15 @@ echo "    speechcli"
 echo "    speechcli --output"
 echo "    speechcli --copy"
 echo "    speechcli --type"
-echo "    speechcli --type --copy --output"
+echo "    speechcli --type --auto-punctuation"
+echo "    speechcli --type --language hi-IN"
+echo "    speechcli --list-microphones"
+echo "    speechcli --type --device-index 0"
+echo "    speechcli --language en-US --device-index 0 --auto-punctuation --save-settings"
+echo "    speechcli --show-settings"
+echo "    speechcli --type --no-auto-punctuation --no-overlay"
+echo "    speechcli --type --listen-timeout 10 --pause-threshold 1.0"
+echo "    speechcli --type --copy --output --auto-punctuation --overlay --language en-US"
 echo "    speechcli --verbose"
 echo ""
 echo "🎉 speechcli is globally available now"
