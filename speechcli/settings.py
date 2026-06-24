@@ -13,6 +13,9 @@ SETTING_KEYS = (
     "overlay",
     "pause_threshold",
     "queue_timeout",
+    "should_copy",
+    "should_output",
+    "should_type",
 )
 
 

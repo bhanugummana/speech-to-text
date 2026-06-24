@@ -29,6 +29,9 @@ class OptionsTest(unittest.TestCase):
             "overlay": True,
             "pause_threshold": 0.6,
             "queue_timeout": 12.0,
+            "should_copy": False,
+            "should_output": False,
+            "should_type": True,
         })
 
         self.assertTrue(options.auto_punctuation)
@@ -38,6 +41,9 @@ class OptionsTest(unittest.TestCase):
         self.assertTrue(options.overlay)
         self.assertEqual(options.pause_threshold, 0.6)
         self.assertEqual(options.queue_timeout, 12.0)
+        self.assertTrue(options.should_type)
+        self.assertFalse(options.should_copy)
+        self.assertFalse(options.should_output)
 
     def test_cli_values_override_saved_defaults(self):
         options = parse_args(["--language", "en-IN"], {"language": "hi-IN"})
@@ -107,6 +113,22 @@ class OptionsTest(unittest.TestCase):
         self.assertTrue(options.overlay)
         self.assertTrue(options.save_settings)
         self.assertTrue(options.show_settings)
+
+    def test_explicit_action_overrides_saved_action_defaults(self):
+        options = parse_args(["--copy"], {
+            "should_copy": False,
+            "should_output": False,
+            "should_type": True,
+        })
+
+        self.assertFalse(options.should_type)
+        self.assertTrue(options.should_copy)
+        self.assertFalse(options.should_output)
+
+    def test_settings_ui_flag(self):
+        options = parse_args(["--settings-ui"])
+
+        self.assertTrue(options.settings_ui)
 
 
 if __name__ == "__main__":

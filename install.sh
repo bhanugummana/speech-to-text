@@ -13,12 +13,24 @@ PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 if [ -f /etc/os-release ]; then
     . /etc/os-release
     DISTRO=$ID
+    DISTRO_LIKE=${ID_LIKE:-}
 else
     echo "❌ Could not detect Linux distribution"
     exit 1
 fi
 
 echo "🐧 Detected distro: $DISTRO"
+
+is_distro_family() {
+    FAMILY="$1"
+    [ "$DISTRO" = "$FAMILY" ] && return 0
+
+    for LIKE in $DISTRO_LIKE; do
+        [ "$LIKE" = "$FAMILY" ] && return 0
+    done
+
+    return 1
+}
 
 # ---------------------------------------
 # Install system dependencies
@@ -62,21 +74,16 @@ install_fedora() {
         xclip
 }
 
-case "$DISTRO" in
-    arch|endeavouros|manjaro)
-        install_arch
-        ;;
-    ubuntu|debian|pop|linuxmint)
-        install_ubuntu
-        ;;
-    fedora)
-        install_fedora
-        ;;
-    *)
-        echo "⚠️ Unsupported distro: $DISTRO"
-        echo "Please install dependencies manually"
-        ;;
-esac
+if is_distro_family arch || [ "$DISTRO" = "endeavouros" ] || [ "$DISTRO" = "manjaro" ]; then
+    install_arch
+elif is_distro_family debian || [ "$DISTRO" = "ubuntu" ] || [ "$DISTRO" = "pop" ] || [ "$DISTRO" = "linuxmint" ]; then
+    install_ubuntu
+elif is_distro_family fedora; then
+    install_fedora
+else
+    echo "⚠️ Unsupported distro: $DISTRO"
+    echo "Please install dependencies manually"
+fi
 
 # ---------------------------------------
 # Install Python dependencies
@@ -104,6 +111,26 @@ python "$PROJECT_DIR/main.py" "\$@"
 EOF
 
 chmod +x ~/.local/bin/speechcli
+
+cat > ~/.local/bin/speechcli-settings << EOF
+#!/usr/bin/env bash
+
+python "$PROJECT_DIR/main.py" --settings-ui
+EOF
+
+chmod +x ~/.local/bin/speechcli-settings
+
+mkdir -p "$HOME/.local/share/applications"
+
+cat > "$HOME/.local/share/applications/speechcli-settings.desktop" << EOF
+[Desktop Entry]
+Type=Application
+Name=SpeechCLI Settings
+Comment=Configure speech dictation settings
+Exec=$HOME/.local/bin/speechcli-settings
+Terminal=false
+Categories=Utility;Accessibility;
+EOF
 
 # ---------------------------------------
 # Configure PATH for ALL shells
@@ -204,6 +231,7 @@ echo ""
 echo "Usage:"
 echo ""
 echo "    speechcli"
+echo "    speechcli --settings-ui"
 echo "    speechcli --output"
 echo "    speechcli --copy"
 echo "    speechcli --type"

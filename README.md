@@ -30,6 +30,7 @@ Supports:
 - ⏱️ **Inactivity Auto-Stop**: Automatically stops listening if you don't speak for 10 seconds.
 - 🔔 **Integrated System Notifications**: Shows "Listening..." and "Completed" alerts natively.
 - 🪟 **Listening Overlay**: Optional always-on-top status window while dictation is active.
+- 🧰 **Settings Window**: Change microphone, language, output mode, punctuation, overlay, and timing from a native UI.
 - ⌨️ Auto-type into active window
 - 📋 Copy to clipboard
 - 🖥️ CLI-first workflow
@@ -109,6 +110,17 @@ exec $SHELL
 ---
 
 # Usage
+
+## Open settings window
+
+```bash
+speechcli --settings-ui
+speechcli-settings
+```
+
+This opens a native settings window where you can choose whether dictation types into the active app, copies to the clipboard, prints in the terminal, or types and copies. The same window also lets you choose the microphone, language, punctuation, overlay, and listening timing, then save those choices as defaults.
+
+After installation, you can also open **SpeechCLI Settings** from your desktop app launcher.
 
 ## Print recognized text
 
@@ -198,12 +210,13 @@ Use `--list-microphones` to find the input device index, then pass that index wi
 ## Save dictation defaults
 
 ```bash
+speechcli --settings-ui
 speechcli --language en-US --device-index 2 --auto-punctuation --overlay --save-settings
 speechcli --show-settings
 speechcli --type --no-auto-punctuation --no-overlay
 ```
 
-Saved settings are stored in `~/.config/speechcli/settings.json` and are used as defaults for future runs. Command-line options still override saved values.
+Saved settings are stored in `~/.config/speechcli/settings.json` and are used as defaults for future runs. Command-line options still override saved values. If you save an output mode from the settings window, running `speechcli` with no `--type`, `--copy`, or `--output` flag uses that saved mode.
 
 ---
 

@@ -46,6 +46,7 @@ import sys
 import threading
 
 from speechcli.audio import create_microphone, print_microphones
+from speechcli.config_ui import run_settings_window
 from speechcli.dictation import (
     DictationOptions,
     DictationState,
@@ -228,6 +229,9 @@ def main():
 
     saved_settings = load_settings()
     options = parse_args(args, saved_settings)
+
+    if options.settings_ui:
+        sys.exit(run_settings_window(saved_settings, sr, __file__))
 
     if options.show_settings:
         print_settings(saved_settings)

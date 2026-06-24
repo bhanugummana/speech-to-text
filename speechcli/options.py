@@ -5,6 +5,7 @@ DEFAULT_LANGUAGE = "en-US"
 DEFAULT_LISTEN_TIMEOUT = 10.0
 DEFAULT_QUEUE_TIMEOUT = 15.0
 DEFAULT_PAUSE_THRESHOLD = 1.0
+ACTION_KEYS = ("should_type", "should_copy", "should_output")
 
 
 def default_value(defaults, key, fallback):
@@ -35,15 +36,50 @@ def nonnegative_int(value):
     return parsed
 
 
+def apply_action_defaults(options, defaults):
+    explicit_action = any(getattr(options, key) is not None for key in ACTION_KEYS)
+
+    for key in ACTION_KEYS:
+        value = getattr(options, key)
+        if explicit_action:
+            setattr(options, key, bool(value))
+        else:
+            setattr(options, key, bool(default_value(defaults, key, False)))
+
+    return options
+
+
 def parse_args(argv, defaults=None):
     parser = argparse.ArgumentParser(
         prog="speechcli",
         description="Dictate text into the active desktop field.",
     )
-    parser.add_argument("--type", action="store_true", dest="should_type")
-    parser.add_argument("--copy", action="store_true", dest="should_copy")
-    parser.add_argument("--output", action="store_true", dest="should_output")
+    parser.add_argument(
+        "--type",
+        action="store_true",
+        default=None,
+        dest="should_type",
+    )
+    parser.add_argument(
+        "--copy",
+        action="store_true",
+        default=None,
+        dest="should_copy",
+    )
+    parser.add_argument(
+        "--output",
+        action="store_true",
+        default=None,
+        dest="should_output",
+    )
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--settings-ui",
+        "--gui",
+        action="store_true",
+        dest="settings_ui",
+        help="Open the graphical settings window and exit.",
+    )
     parser.add_argument(
         "--auto-punctuation",
         action=argparse.BooleanOptionalAction,
@@ -100,4 +136,4 @@ def parse_args(argv, defaults=None):
         default=default_value(defaults, "pause_threshold", DEFAULT_PAUSE_THRESHOLD),
         help="Seconds of silence that end the current dictated phrase.",
     )
-    return parser.parse_args(argv)
+    return apply_action_defaults(parser.parse_args(argv), defaults)

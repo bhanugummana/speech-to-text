@@ -34,6 +34,7 @@ class SettingsTest(unittest.TestCase):
                 "11",
                 "--pause-threshold",
                 "0.6",
+                "--type",
             ])
 
             saved = save_settings(options, path)
@@ -44,6 +45,9 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(loaded["language"], "hi-IN")
             self.assertTrue(loaded["auto_punctuation"])
             self.assertTrue(loaded["overlay"])
+            self.assertTrue(loaded["should_type"])
+            self.assertFalse(loaded["should_copy"])
+            self.assertFalse(loaded["should_output"])
 
 
 if __name__ == "__main__":

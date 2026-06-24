@@ -1,11 +1,24 @@
 import os
 import queue
+import signal
 import subprocess
 import sys
 import threading
 
 
 OVERLAY_WINDOW_ARG = "--overlay-window"
+OVERLAY_PARENT_PID_ARG = "--parent-pid"
+
+
+def overlay_parent_pid(argv):
+    if OVERLAY_PARENT_PID_ARG not in argv:
+        return None
+
+    try:
+        index = argv.index(OVERLAY_PARENT_PID_ARG)
+        return int(argv[index + 1])
+    except (IndexError, ValueError):
+        return None
 
 
 def run_overlay_window():
@@ -15,6 +28,7 @@ def run_overlay_window():
         return 1
 
     command_queue = queue.Queue()
+    parent_pid = overlay_parent_pid(sys.argv)
 
     def read_commands():
         for line in sys.stdin:
@@ -41,6 +55,29 @@ def run_overlay_window():
             except queue.Empty:
                 break
         root.after(100, poll_commands)
+
+    def open_settings():
+        try:
+            subprocess.Popen(
+                [
+                    sys.executable,
+                    os.path.abspath(sys.argv[0]),
+                    "--settings-ui",
+                ],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
+        except Exception:
+            pass
+
+    def stop_dictation():
+        if parent_pid:
+            try:
+                os.kill(parent_pid, signal.SIGINT)
+            except OSError:
+                pass
+        root.destroy()
 
     root = tk.Tk()
     root.title("SpeechCLI")
@@ -84,6 +121,37 @@ def run_overlay_window():
     )
     hint_label.pack(anchor="w", pady=(7, 0))
 
+    button_row = tk.Frame(frame, bg="#202124")
+    button_row.pack(anchor="e", pady=(10, 0))
+
+    settings_button = tk.Button(
+        button_row,
+        text="Settings",
+        command=open_settings,
+        bg="#3c4043",
+        fg="#ffffff",
+        activebackground="#5f6368",
+        activeforeground="#ffffff",
+        relief="flat",
+        padx=10,
+        pady=4,
+    )
+    settings_button.pack(side="left", padx=(0, 8))
+
+    stop_button = tk.Button(
+        button_row,
+        text="Stop",
+        command=stop_dictation,
+        bg="#f1f3f4",
+        fg="#202124",
+        activebackground="#e8eaed",
+        activeforeground="#202124",
+        relief="flat",
+        padx=12,
+        pady=4,
+    )
+    stop_button.pack(side="left")
+
     root.update_idletasks()
     width = root.winfo_width()
     height = root.winfo_height()
@@ -105,7 +173,13 @@ def start_overlay(enabled, script_path, log_func=None):
 
     try:
         process = subprocess.Popen(
-            [sys.executable, os.path.abspath(script_path), OVERLAY_WINDOW_ARG],
+            [
+                sys.executable,
+                os.path.abspath(script_path),
+                OVERLAY_WINDOW_ARG,
+                OVERLAY_PARENT_PID_ARG,
+                str(os.getpid()),
+            ],
             stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
