@@ -60,8 +60,7 @@ install_arch() {
     if [ "$INSTALL_TRAY" = "yes" ]; then
         sudo pacman -S --needed \
             python-gobject \
-            gtk3 \
-            libappindicator
+            gtk3
     fi
 }
 
@@ -81,8 +80,7 @@ install_ubuntu() {
     if [ "$INSTALL_TRAY" = "yes" ]; then
         sudo apt install -y \
             python3-gi \
-            gir1.2-gtk-3.0 \
-            gir1.2-appindicator3-0.1
+            gir1.2-gtk-3.0
     fi
 }
 
@@ -100,8 +98,7 @@ install_fedora() {
     if [ "$INSTALL_TRAY" = "yes" ]; then
         sudo dnf install -y \
             python3-gobject \
-            gtk3 \
-            libappindicator-gtk3
+            gtk3
     fi
 }
 
@@ -129,7 +126,6 @@ pip install --break-system-packages \
 
 if [ "$INSTALL_TRAY" = "yes" ]; then
     pip install --break-system-packages \
-        pystray \
         pillow
 fi
 

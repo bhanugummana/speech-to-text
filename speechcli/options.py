@@ -3,6 +3,7 @@ import argparse
 
 DEFAULT_LANGUAGE = "en-US"
 DEFAULT_LISTEN_TIMEOUT = None
+DEFAULT_PHRASE_TIME_LIMIT = 22.0
 DEFAULT_QUEUE_TIMEOUT = 15.0
 DEFAULT_PAUSE_THRESHOLD = 1.0
 ACTION_KEYS = ("should_type", "should_copy", "should_output")
@@ -134,6 +135,12 @@ def parse_args(argv, defaults=None):
         type=positive_float,
         default=default_value(defaults, "queue_timeout", DEFAULT_QUEUE_TIMEOUT),
         help="Safety timeout while waiting for recorded audio chunks.",
+    )
+    parser.add_argument(
+        "--phrase-time-limit",
+        type=positive_float,
+        default=default_value(defaults, "phrase_time_limit", DEFAULT_PHRASE_TIME_LIMIT),
+        help="Maximum seconds per audio chunk before transcription starts.",
     )
     parser.add_argument(
         "--pause-threshold",

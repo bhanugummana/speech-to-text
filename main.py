@@ -137,7 +137,7 @@ def print_settings(settings):
         print(f"{key}: {settings[key]}")
 
 
-def background_listener(recognizer, source, listen_timeout, verbose):
+def background_listener(recognizer, source, listen_timeout, phrase_time_limit, verbose):
     global running
     if sr is None:
         return
@@ -147,7 +147,11 @@ def background_listener(recognizer, source, listen_timeout, verbose):
             with source:
                 while running:
                     try:
-                        audio = recognizer.listen(source, timeout=listen_timeout)
+                        audio = recognizer.listen(
+                            source,
+                            timeout=listen_timeout,
+                            phrase_time_limit=phrase_time_limit,
+                        )
                         if running:
                             audio_queue.put(audio)
                     except sr.WaitTimeoutError:
@@ -317,6 +321,7 @@ def main():
                 recognizer,
                 source,
                 options.listen_timeout,
+                options.phrase_time_limit,
                 options.verbose,
             ),
             daemon=True

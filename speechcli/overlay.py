@@ -58,8 +58,8 @@ def run_overlay_window():
         if command == "status":
             set_status(value or "Listening")
         elif command == "text":
-            preview_text = value[-110:] if value else "Dictated text will appear here."
-            preview_label.config(text=preview_text)
+            preview_text = value[-150:] if value else "Dictated text will appear here."
+            canvas.itemconfig(preview_text_item, text=preview_text)
 
     def poll_commands():
         while True:
@@ -95,15 +95,20 @@ def run_overlay_window():
     def set_status(message):
         normalized = message.lower()
         color = palette["green"]
+        helper = "Listening continuously"
         if "transcrib" in normalized:
             color = palette["blue"]
+            helper = "Processing the latest audio chunk"
         elif "error" in normalized or "retry" in normalized:
             color = palette["amber"]
+            helper = "Still recording; retrying transcription"
         elif "stop" in normalized:
             color = palette["red"]
+            helper = "Stopping dictation"
 
-        status_dot.itemconfig(status_dot_shape, fill=color)
-        status_label.config(text=message)
+        canvas.itemconfig(status_dot_shape, fill=color)
+        canvas.itemconfig(status_text_item, text=message)
+        canvas.itemconfig(helper_text_item, text=helper)
 
     def draw_settings_icon(canvas, color):
         canvas.create_oval(9, 9, 27, 27, outline=color, width=2)
@@ -119,152 +124,174 @@ def run_overlay_window():
     def draw_stop_icon(canvas, color):
         canvas.create_rectangle(11, 11, 25, 25, fill=color, outline=color)
 
-    def icon_button(parent, label, draw_icon, command, danger=False):
-        normal_bg = "#7f1d1d" if danger else palette["panel_2"]
-        hover_bg = "#991b1b" if danger else "#273449"
-        fg = "#fecaca" if danger else palette["text"]
-        frame = tk.Frame(
-            parent,
-            bg=normal_bg,
-            cursor="hand2",
-            highlightthickness=1,
-            highlightbackground="#3f4b61",
-        )
-        frame.pack(side="left", padx=(0, 8))
+    def rounded_rect(canvas, x1, y1, x2, y2, radius=22, **kwargs):
+        points = [
+            x1 + radius, y1,
+            x2 - radius, y1,
+            x2, y1,
+            x2, y1 + radius,
+            x2, y2 - radius,
+            x2, y2,
+            x2 - radius, y2,
+            x1 + radius, y2,
+            x1, y2,
+            x1, y2 - radius,
+            x1, y1 + radius,
+            x1, y1,
+        ]
+        return canvas.create_polygon(points, smooth=True, **kwargs)
 
-        canvas = tk.Canvas(
-            frame,
-            width=36,
-            height=36,
-            bg=normal_bg,
-            bd=0,
-            highlightthickness=0,
-        )
-        canvas.pack(side="left", padx=(10, 0), pady=8)
-        draw_icon(canvas, fg)
+    def draw_canvas_settings_icon(canvas, x, y, color, tag):
+        canvas.create_oval(x + 7, y + 7, x + 25, y + 25, outline=color, width=2, tags=tag)
+        canvas.create_oval(x + 13, y + 13, x + 19, y + 19, outline=color, width=2, tags=tag)
+        for x1, y1, x2, y2 in (
+            (x + 16, y + 2, x + 16, y + 7),
+            (x + 16, y + 25, x + 16, y + 30),
+            (x + 2, y + 16, x + 7, y + 16),
+            (x + 25, y + 16, x + 30, y + 16),
+        ):
+            canvas.create_line(x1, y1, x2, y2, fill=color, width=2, capstyle="round", tags=tag)
 
-        text_label = tk.Label(
-            frame,
+    def draw_canvas_stop_icon(canvas, x, y, color, tag):
+        canvas.create_rectangle(x + 9, y + 9, x + 23, y + 23, fill=color, outline=color, tags=tag)
+
+    def canvas_button(x, y, label, icon_drawer, command, danger=False):
+        tag = f"button_{label.lower()}"
+        bg_tag = f"{tag}_bg"
+        fill = "#172033" if not danger else "#7f1d1d"
+        hover_fill = "#22314d" if not danger else "#991b1b"
+        outline = "#2f405f" if not danger else "#b91c1c"
+        text_color = palette["text"] if not danger else "#fee2e2"
+        rounded_rect(canvas, x, y, x + 132, y + 48, 16, fill=fill, outline=outline, width=1, tags=(tag, bg_tag))
+        icon_drawer(canvas, x + 14, y + 8, text_color, tag)
+        canvas.create_text(
+            x + 54,
+            y + 24,
             text=label,
-            bg=normal_bg,
-            fg=fg,
+            fill=text_color,
             font=("Sans", 10, "bold"),
-            padx=10,
+            anchor="w",
+            tags=tag,
         )
-        text_label.pack(side="left", padx=(0, 12))
 
-        def set_button_bg(bg):
-            frame.config(bg=bg)
-            canvas.config(bg=bg)
-            text_label.config(bg=bg)
+        def enter(event):
+            canvas.itemconfig(bg_tag, fill=hover_fill)
 
-        def handle_enter(event):
-            set_button_bg(hover_bg)
+        def leave(event):
+            canvas.itemconfig(bg_tag, fill=fill)
 
-        def handle_leave(event):
-            set_button_bg(normal_bg)
-
-        for widget in (frame, canvas, text_label):
-            widget.bind("<Button-1>", lambda event: command())
-            widget.bind("<Return>", lambda event: command())
-            widget.bind("<Enter>", handle_enter)
-            widget.bind("<Leave>", handle_leave)
-
-        return frame
+        canvas.tag_bind(tag, "<Button-1>", lambda event: command())
+        canvas.tag_bind(tag, "<Enter>", enter)
+        canvas.tag_bind(tag, "<Leave>", leave)
+        return tag
 
     root = tk.Tk()
     root.title("SpeechCLI")
     root.attributes("-topmost", True)
+    root.overrideredirect(True)
     root.resizable(False, False)
+    try:
+        root.attributes("-alpha", 0.97)
+    except tk.TclError:
+        pass
 
     try:
         root.attributes("-type", "dock")
     except tk.TclError:
         pass
 
-    frame = tk.Frame(
+    window_width = 560
+    window_height = 270
+    canvas = tk.Canvas(
         root,
+        width=window_width,
+        height=window_height,
         bg=palette["bg"],
-        padx=18,
-        pady=16,
-        highlightthickness=1,
-        highlightbackground=palette["line"],
-    )
-    frame.pack(fill="both", expand=True)
-
-    header = tk.Frame(frame, bg=palette["bg"])
-    header.pack(fill="x")
-
-    status_pill = tk.Frame(header, bg=palette["panel_2"], padx=10, pady=6)
-    status_pill.pack(side="left")
-
-    status_dot = tk.Canvas(
-        status_pill,
-        width=14,
-        height=14,
-        bg=palette["panel_2"],
         bd=0,
         highlightthickness=0,
     )
-    status_dot.pack(side="left", padx=(0, 8))
-    status_dot_shape = status_dot.create_oval(3, 3, 11, 11, fill=palette["green"], outline="")
+    canvas.pack(fill="both", expand=True)
 
-    status_label = tk.Label(
-        status_pill,
-        text="Listening",
-        bg=palette["panel_2"],
-        fg=palette["text"],
-        font=("Sans", 11, "bold"),
-    )
-    status_label.pack(side="left")
+    drag = {"x": 0, "y": 0}
 
-    title_label = tk.Label(
-        frame,
+    def start_drag(event):
+        drag["x"] = event.x
+        drag["y"] = event.y
+
+    def move_window(event):
+        root.geometry(f"+{event.x_root - drag['x']}+{event.y_root - drag['y']}")
+
+    canvas.bind("<ButtonPress-1>", start_drag)
+    canvas.bind("<B1-Motion>", move_window)
+
+    rounded_rect(canvas, 10, 10, window_width - 10, window_height - 10, 26, fill="#0b1220", outline="#243044", width=1)
+    rounded_rect(canvas, 24, 24, window_width - 24, 92, 22, fill="#111c2e", outline="#29364d", width=1)
+    canvas.create_oval(44, 42, 74, 72, fill="#2563eb", outline="#38bdf8", width=2)
+    canvas.create_rectangle(56, 68, 62, 80, fill="#38bdf8", outline="#38bdf8")
+    canvas.create_line(48, 82, 70, 82, fill="#94a3b8", width=2, capstyle="round")
+    canvas.create_text(
+        92,
+        42,
         text="SpeechCLI",
-        bg=palette["bg"],
-        fg=palette["text"],
-        font=("Sans", 16, "bold"),
+        fill=palette["text"],
+        font=("Sans", 18, "bold"),
+        anchor="nw",
     )
-    title_label.pack(anchor="w", pady=(16, 2))
+    helper_text_item = canvas.create_text(
+        92,
+        68,
+        text="Listening continuously",
+        fill=palette["muted"],
+        font=("Sans", 10),
+        anchor="nw",
+    )
 
-    preview_label = tk.Label(
-        frame,
-        text="Dictated text will appear here.",
-        bg=palette["panel"],
-        fg=palette["text"],
-        font=("Sans", 11),
-        width=46,
-        height=3,
+    rounded_rect(canvas, 382, 38, 520, 76, 16, fill="#172033", outline="#2f405f", width=1)
+    status_dot_shape = canvas.create_oval(402, 53, 414, 65, fill=palette["green"], outline="")
+    status_text_item = canvas.create_text(
+        424,
+        59,
+        text="Listening",
+        fill=palette["text"],
+        font=("Sans", 11, "bold"),
         anchor="w",
-        justify="left",
-        padx=14,
-        pady=10,
-        wraplength=430,
     )
-    preview_label.pack(anchor="w", fill="x", pady=(8, 0))
 
-    hint_label = tk.Label(
-        frame,
-        text="Listening stays on until you press Stop.",
-        bg=palette["bg"],
-        fg=palette["muted"],
-        font=("Sans", 9),
+    rounded_rect(canvas, 24, 106, window_width - 24, 196, 22, fill="#121a2a", outline="#29364d", width=1)
+    canvas.create_text(
+        44,
+        126,
+        text="Transcript preview",
+        fill="#94a3b8",
+        font=("Sans", 9, "bold"),
+        anchor="nw",
     )
-    hint_label.pack(anchor="w", pady=(10, 0))
+    preview_text_item = canvas.create_text(
+        44,
+        150,
+        text="Dictated text will appear here.",
+        fill=palette["text"],
+        font=("Sans", 12),
+        anchor="nw",
+        width=470,
+    )
 
-    button_row = tk.Frame(frame, bg=palette["bg"])
-    button_row.pack(anchor="e", pady=(14, 0))
-
-    icon_button(button_row, "Settings", draw_settings_icon, open_settings)
-    icon_button(button_row, "Stop", draw_stop_icon, stop_dictation, danger=True)
+    canvas.create_text(
+        34,
+        222,
+        text="Recording continues while chunks are transcribed.",
+        fill="#94a3b8",
+        font=("Sans", 10),
+        anchor="w",
+    )
+    canvas_button(274, 206, "Settings", draw_canvas_settings_icon, open_settings)
+    canvas_button(416, 206, "Stop", draw_canvas_stop_icon, stop_dictation, danger=True)
 
     root.update_idletasks()
-    width = root.winfo_width()
-    height = root.winfo_height()
     screen_width = root.winfo_screenwidth()
     screen_height = root.winfo_screenheight()
-    x = int((screen_width - width) / 2)
-    y = max(20, screen_height - height - 96)
+    x = int((screen_width - window_width) / 2)
+    y = max(20, screen_height - window_height - 96)
     root.geometry(f"+{x}+{y}")
 
     threading.Thread(target=read_commands, daemon=True).start()

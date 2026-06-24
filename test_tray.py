@@ -9,6 +9,7 @@ class TrayTest(unittest.TestCase):
             "language": "hi-IN",
             "listen_timeout": 5.0,
             "overlay": False,
+            "phrase_time_limit": 15.0,
             "should_copy": False,
             "should_output": True,
             "should_type": False,
@@ -18,6 +19,7 @@ class TrayTest(unittest.TestCase):
         self.assertEqual(values["language"], "hi-IN")
         self.assertIsNone(values["listen_timeout"])
         self.assertTrue(values["overlay"])
+        self.assertEqual(values["phrase_time_limit"], 15.0)
 
     def test_tray_command_types_and_copies_into_focused_field(self):
         command = build_tray_dictation_command({
@@ -27,6 +29,7 @@ class TrayTest(unittest.TestCase):
             "listen_timeout": 7.0,
             "overlay": True,
             "pause_threshold": 0.7,
+            "phrase_time_limit": 22.0,
             "queue_timeout": 12.0,
         }, "/app/main.py")
 
@@ -35,6 +38,8 @@ class TrayTest(unittest.TestCase):
         self.assertNotIn("--output", command)
         self.assertIn("--overlay", command)
         self.assertNotIn("--listen-timeout", command)
+        self.assertIn("--phrase-time-limit", command)
+        self.assertIn("22.0", command)
         self.assertIn("--language", command)
         self.assertIn("kn-IN", command)
         self.assertIn("--device-index", command)

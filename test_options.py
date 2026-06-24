@@ -4,6 +4,7 @@ from speechcli.options import (
     DEFAULT_LANGUAGE,
     DEFAULT_LISTEN_TIMEOUT,
     DEFAULT_PAUSE_THRESHOLD,
+    DEFAULT_PHRASE_TIME_LIMIT,
     DEFAULT_QUEUE_TIMEOUT,
     parse_args,
 )
@@ -28,6 +29,7 @@ class OptionsTest(unittest.TestCase):
             "listen_timeout": 8.0,
             "overlay": True,
             "pause_threshold": 0.6,
+            "phrase_time_limit": 22.0,
             "queue_timeout": 12.0,
             "should_copy": False,
             "should_output": False,
@@ -40,6 +42,7 @@ class OptionsTest(unittest.TestCase):
         self.assertEqual(options.listen_timeout, 8.0)
         self.assertTrue(options.overlay)
         self.assertEqual(options.pause_threshold, 0.6)
+        self.assertEqual(options.phrase_time_limit, 22.0)
         self.assertEqual(options.queue_timeout, 12.0)
         self.assertTrue(options.should_type)
         self.assertFalse(options.should_copy)
@@ -66,6 +69,7 @@ class OptionsTest(unittest.TestCase):
         options = parse_args([])
 
         self.assertEqual(options.listen_timeout, DEFAULT_LISTEN_TIMEOUT)
+        self.assertEqual(options.phrase_time_limit, DEFAULT_PHRASE_TIME_LIMIT)
         self.assertEqual(options.queue_timeout, DEFAULT_QUEUE_TIMEOUT)
         self.assertEqual(options.pause_threshold, DEFAULT_PAUSE_THRESHOLD)
 
@@ -75,12 +79,15 @@ class OptionsTest(unittest.TestCase):
             "6.5",
             "--queue-timeout",
             "9",
+            "--phrase-time-limit",
+            "22",
             "--pause-threshold",
             "0.7",
         ])
 
         self.assertEqual(options.listen_timeout, 6.5)
         self.assertEqual(options.queue_timeout, 9)
+        self.assertEqual(options.phrase_time_limit, 22)
         self.assertEqual(options.pause_threshold, 0.7)
 
     def test_listener_timing_must_be_positive(self):

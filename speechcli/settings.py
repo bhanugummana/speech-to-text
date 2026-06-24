@@ -12,6 +12,7 @@ SETTING_KEYS = (
     "listen_timeout",
     "overlay",
     "pause_threshold",
+    "phrase_time_limit",
     "queue_timeout",
     "should_copy",
     "should_output",

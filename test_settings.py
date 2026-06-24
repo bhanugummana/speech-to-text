@@ -34,6 +34,8 @@ class SettingsTest(unittest.TestCase):
                 "11",
                 "--pause-threshold",
                 "0.6",
+                "--phrase-time-limit",
+                "22",
                 "--type",
             ])
 
@@ -43,6 +45,7 @@ class SettingsTest(unittest.TestCase):
             self.assertEqual(loaded, saved)
             self.assertEqual(loaded["device_index"], 2)
             self.assertEqual(loaded["language"], "hi-IN")
+            self.assertEqual(loaded["phrase_time_limit"], 22)
             self.assertTrue(loaded["auto_punctuation"])
             self.assertTrue(loaded["overlay"])
             self.assertTrue(loaded["should_type"])

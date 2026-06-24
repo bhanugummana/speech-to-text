@@ -11,9 +11,10 @@ TRAY_MODE = "Type and copy"
 
 def tray_dependency_message():
     return (
-        "System tray support requires pystray and Pillow. Run ./install.sh "
-        "and choose the system tray option, or install them with: "
-        "pip install --break-system-packages pystray pillow\n"
+        "System tray support requires GTK/PyGObject and Pillow. Run "
+        "./install.sh and choose the system tray option, or install your "
+        "distribution's python-gobject/gtk3 packages and: "
+        "pip install --break-system-packages pillow\n"
     )
 
 
@@ -45,9 +46,23 @@ def create_tray_icon_image():
     return image
 
 
+def tray_icon_path():
+    image = create_tray_icon_image()
+    if image is None:
+        return None
+
+    cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "speechcli")
+    os.makedirs(cache_dir, exist_ok=True)
+    path = os.path.join(cache_dir, "speechcli-tray.png")
+    image.save(path)
+    return path
+
+
 def run_tray_app(settings, script_path=None):
     try:
-        import pystray
+        import gi
+        gi.require_version("Gtk", "3.0")
+        from gi.repository import Gtk
     except Exception:
         sys.stderr.write(tray_dependency_message())
         return 1
@@ -84,23 +99,41 @@ def run_tray_app(settings, script_path=None):
         except OSError as e:
             notify("SpeechCLI", f"Could not open settings: {e}")
 
-    def quit_tray(icon, item=None):
-        icon.stop()
+    def quit_tray(icon=None, item=None):
+        Gtk.main_quit()
 
-    image = create_tray_icon_image()
-    if image is None:
+    icon_path = tray_icon_path()
+    if icon_path is None:
         sys.stderr.write(tray_dependency_message())
         return 1
 
-    icon = pystray.Icon(
-        "speechcli",
-        image,
-        "SpeechCLI - left click to speak",
-        pystray.Menu(
-            pystray.MenuItem("Speak now", start_dictation, default=True),
-            pystray.MenuItem("Settings", open_settings),
-            pystray.MenuItem("Quit", quit_tray),
+    menu = Gtk.Menu()
+    for label, callback in (
+        ("Speak now", start_dictation),
+        ("Settings", open_settings),
+        ("Quit", quit_tray),
+    ):
+        item = Gtk.MenuItem(label=label)
+        item.connect("activate", lambda widget, cb=callback: cb())
+        menu.append(item)
+    menu.show_all()
+
+    icon = Gtk.StatusIcon.new_from_file(icon_path)
+    icon.set_title("SpeechCLI")
+    icon.set_tooltip_text("SpeechCLI - left click to speak")
+    icon.set_visible(True)
+    icon.connect("activate", lambda status_icon: start_dictation())
+    icon.connect(
+        "popup-menu",
+        lambda status_icon, button, activate_time: menu.popup(
+            None,
+            None,
+            None,
+            None,
+            button,
+            activate_time,
         ),
     )
-    icon.run()
+
+    Gtk.main()
     return 0

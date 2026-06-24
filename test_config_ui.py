@@ -22,6 +22,7 @@ class ConfigUiTest(unittest.TestCase):
             "mode": "Type and copy",
             "overlay": True,
             "pause_threshold": 0.6,
+            "phrase_time_limit": 22.0,
             "queue_timeout": 11.0,
         })
 
@@ -32,6 +33,8 @@ class ConfigUiTest(unittest.TestCase):
         self.assertIn("2", args)
         self.assertIn("--language", args)
         self.assertIn("hi-IN", args)
+        self.assertIn("--phrase-time-limit", args)
+        self.assertIn("22.0", args)
 
     def test_build_dictation_args_omits_blank_listen_timeout(self):
         args = build_dictation_args({
@@ -42,10 +45,12 @@ class ConfigUiTest(unittest.TestCase):
             "mode": "Type and copy",
             "overlay": True,
             "pause_threshold": 1.0,
+            "phrase_time_limit": 22.0,
             "queue_timeout": 15.0,
         })
 
         self.assertNotIn("--listen-timeout", args)
+        self.assertIn("--phrase-time-limit", args)
 
 
 if __name__ == "__main__":

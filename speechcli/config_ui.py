@@ -8,6 +8,7 @@ from speechcli.options import (
     DEFAULT_LANGUAGE,
     DEFAULT_LISTEN_TIMEOUT,
     DEFAULT_PAUSE_THRESHOLD,
+    DEFAULT_PHRASE_TIME_LIMIT,
     DEFAULT_QUEUE_TIMEOUT,
 )
 from speechcli.settings import save_settings
@@ -86,6 +87,7 @@ def settings_to_form_values(settings):
         "mode": mode_from_settings(settings),
         "overlay": bool(settings.get("overlay", True)),
         "pause_threshold": settings.get("pause_threshold", DEFAULT_PAUSE_THRESHOLD),
+        "phrase_time_limit": settings.get("phrase_time_limit", DEFAULT_PHRASE_TIME_LIMIT),
         "queue_timeout": settings.get("queue_timeout", DEFAULT_QUEUE_TIMEOUT),
     }
 
@@ -105,6 +107,7 @@ def build_dictation_args(values):
     if values["listen_timeout"] is not None:
         args.extend(["--listen-timeout", str(values["listen_timeout"])])
     args.extend(["--queue-timeout", str(values["queue_timeout"])])
+    args.extend(["--phrase-time-limit", str(values["phrase_time_limit"])])
     args.extend(["--pause-threshold", str(values["pause_threshold"])])
 
     if values["device_index"] is not None:
@@ -130,6 +133,7 @@ def values_to_namespace(values):
         listen_timeout=values["listen_timeout"],
         overlay=values["overlay"],
         pause_threshold=values["pause_threshold"],
+        phrase_time_limit=values["phrase_time_limit"],
         queue_timeout=values["queue_timeout"],
         should_copy=mode_values["should_copy"],
         should_output=mode_values["should_output"],
@@ -203,6 +207,7 @@ def run_settings_window(settings, sr_module=None, script_path=None):
     )
     queue_timeout_var = tk.StringVar(value=str(form_values["queue_timeout"]))
     pause_threshold_var = tk.StringVar(value=str(form_values["pause_threshold"]))
+    phrase_time_limit_var = tk.StringVar(value=str(form_values["phrase_time_limit"]))
 
     devices = [("Default microphone", None)]
     if sr_module is not None:
@@ -288,6 +293,7 @@ def run_settings_window(settings, sr_module=None, script_path=None):
     timing_fields = (
         ("Listen timeout", listen_timeout_var, "blank keeps listening until stopped"),
         ("Queue timeout", queue_timeout_var, "safety timeout in seconds"),
+        ("Chunk length", phrase_time_limit_var, "max seconds before transcription"),
         ("Pause threshold", pause_threshold_var, "seconds of silence per phrase"),
     )
     for row, (label, variable, helper) in enumerate(timing_fields):
@@ -341,6 +347,10 @@ def run_settings_window(settings, sr_module=None, script_path=None):
             "pause_threshold": parse_positive_float(
                 "Pause threshold",
                 pause_threshold_var.get(),
+            ),
+            "phrase_time_limit": parse_positive_float(
+                "Chunk length",
+                phrase_time_limit_var.get(),
             ),
             "queue_timeout": parse_positive_float(
                 "Queue timeout",
