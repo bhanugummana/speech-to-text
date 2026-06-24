@@ -108,10 +108,20 @@ class DictationFormattingTest(unittest.TestCase):
 
         self.assertEqual(result.text, "OpenAI, Seattle")
 
-    def test_stop_command_stops_without_typing_literal_words(self):
+    def test_stop_command_is_typed_by_default(self):
         state = DictationState()
 
         result = format_dictation_text("stop dictation", state)
+
+        self.assertFalse(result.stop)
+        self.assertEqual(result.text, "stop dictation")
+        self.assertEqual(state.cumulative_text, "stop dictation")
+
+    def test_stop_command_can_be_enabled(self):
+        state = DictationState()
+        options = DictationOptions(allow_voice_stop=True)
+
+        result = format_dictation_text("stop dictation", state, options)
 
         self.assertTrue(result.stop)
         self.assertEqual(result.text, "")

@@ -209,6 +209,7 @@ class DictationResult:
 @dataclass
 class DictationOptions:
     auto_punctuation: bool = False
+    allow_voice_stop: bool = False
 
 
 @dataclass
@@ -397,7 +398,7 @@ def format_dictation_text(raw_text, state, options=None):
         return DictationResult()
 
     normalized = " ".join(words)
-    if normalized in STOP_PHRASES:
+    if options.allow_voice_stop and normalized in STOP_PHRASES:
         return DictationResult(stop=True)
 
     casing_result = apply_casing_mode(normalized, state)
@@ -416,7 +417,7 @@ def format_dictation_text(raw_text, state, options=None):
     index = 0
     while index < len(words):
         phrase, length = _match_phrase(words, index, STOP_PHRASES)
-        if phrase and len(words) == length:
+        if options.allow_voice_stop and phrase and len(words) == length:
             return DictationResult("".join(parts), stop=True)
 
         phrase, length = _match_phrase(words, index, CONTROL_PHRASES)

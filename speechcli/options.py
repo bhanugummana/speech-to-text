@@ -2,7 +2,7 @@ import argparse
 
 
 DEFAULT_LANGUAGE = "en-US"
-DEFAULT_LISTEN_TIMEOUT = 10.0
+DEFAULT_LISTEN_TIMEOUT = None
 DEFAULT_QUEUE_TIMEOUT = 15.0
 DEFAULT_PAUSE_THRESHOLD = 1.0
 ACTION_KEYS = ("should_type", "should_copy", "should_output")
@@ -127,7 +127,7 @@ def parse_args(argv, defaults=None):
         "--listen-timeout",
         type=positive_float,
         default=default_value(defaults, "listen_timeout", DEFAULT_LISTEN_TIMEOUT),
-        help="Seconds to wait for speech to start before stopping.",
+        help="Optional seconds to wait for speech to start before retrying.",
     )
     parser.add_argument(
         "--queue-timeout",

@@ -102,7 +102,8 @@ def build_dictation_args(values):
         args.append("--output")
 
     args.extend(["--language", values["language"]])
-    args.extend(["--listen-timeout", str(values["listen_timeout"])])
+    if values["listen_timeout"] is not None:
+        args.extend(["--listen-timeout", str(values["listen_timeout"])])
     args.extend(["--queue-timeout", str(values["queue_timeout"])])
     args.extend(["--pause-threshold", str(values["pause_threshold"])])
 
@@ -158,6 +159,7 @@ def run_settings_window(settings, sr_module=None, script_path=None):
         return 1
     root.title("SpeechCLI Settings")
     root.minsize(520, 520)
+    root.configure(bg="#eef2f7")
 
     style = ttk.Style(root)
     try:
@@ -165,14 +167,19 @@ def run_settings_window(settings, sr_module=None, script_path=None):
     except tk.TclError:
         pass
 
-    style.configure("Title.TLabel", font=("Sans", 16, "bold"))
-    style.configure("Section.TLabel", font=("Sans", 10, "bold"))
-    style.configure("Action.TButton", padding=(12, 8))
-    style.configure("TButton", padding=(10, 6))
+    style.configure("App.TFrame", background="#eef2f7")
+    style.configure("Card.TLabelframe", background="#ffffff", bordercolor="#cbd5e1")
+    style.configure("Card.TLabelframe.Label", background="#eef2f7", foreground="#0f172a")
+    style.configure("Title.TLabel", background="#eef2f7", foreground="#0f172a", font=("Sans", 18, "bold"))
+    style.configure("Subtitle.TLabel", background="#eef2f7", foreground="#475569")
+    style.configure("TLabel", background="#ffffff", foreground="#111827")
+    style.configure("Action.TButton", padding=(14, 9), background="#2563eb", foreground="#ffffff")
+    style.map("Action.TButton", background=[("active", "#1d4ed8")])
+    style.configure("TButton", padding=(10, 7))
     style.configure("TCheckbutton", padding=(0, 4))
     style.configure("TRadiobutton", padding=(0, 5))
 
-    container = ttk.Frame(root, padding=18)
+    container = ttk.Frame(root, padding=20, style="App.TFrame")
     container.pack(fill="both", expand=True)
     container.columnconfigure(0, weight=1)
 
@@ -184,13 +191,16 @@ def run_settings_window(settings, sr_module=None, script_path=None):
     ttk.Label(
         container,
         text="Choose how dictation behaves, then save or start it.",
+        style="Subtitle.TLabel",
     ).grid(row=1, column=0, sticky="w", pady=(4, 16))
 
     mode_var = tk.StringVar(value=form_values["mode"])
     language_var = tk.StringVar(value=form_values["language"])
     auto_punctuation_var = tk.BooleanVar(value=form_values["auto_punctuation"])
     overlay_var = tk.BooleanVar(value=form_values["overlay"])
-    listen_timeout_var = tk.StringVar(value=str(form_values["listen_timeout"]))
+    listen_timeout_var = tk.StringVar(
+        value="" if form_values["listen_timeout"] is None else str(form_values["listen_timeout"])
+    )
     queue_timeout_var = tk.StringVar(value=str(form_values["queue_timeout"]))
     pause_threshold_var = tk.StringVar(value=str(form_values["pause_threshold"]))
 
@@ -213,7 +223,12 @@ def run_settings_window(settings, sr_module=None, script_path=None):
             device_var.set(label)
             break
 
-    mode_frame = ttk.LabelFrame(container, text="Dictation output", padding=12)
+    mode_frame = ttk.LabelFrame(
+        container,
+        text="Dictation output",
+        padding=14,
+        style="Card.TLabelframe",
+    )
     mode_frame.grid(row=2, column=0, sticky="ew", pady=(0, 12))
     mode_frame.columnconfigure(0, weight=1)
 
@@ -225,7 +240,12 @@ def run_settings_window(settings, sr_module=None, script_path=None):
             variable=mode_var,
         ).grid(row=index, column=0, sticky="w")
 
-    settings_frame = ttk.LabelFrame(container, text="Recognition settings", padding=12)
+    settings_frame = ttk.LabelFrame(
+        container,
+        text="Recognition settings",
+        padding=14,
+        style="Card.TLabelframe",
+    )
     settings_frame.grid(row=3, column=0, sticky="ew", pady=(0, 12))
     settings_frame.columnconfigure(1, weight=1)
 
@@ -256,22 +276,24 @@ def run_settings_window(settings, sr_module=None, script_path=None):
         variable=overlay_var,
     ).grid(row=3, column=0, columnspan=2, sticky="w")
 
-    timing_frame = ttk.LabelFrame(container, text="Timing", padding=12)
+    timing_frame = ttk.LabelFrame(
+        container,
+        text="Timing",
+        padding=14,
+        style="Card.TLabelframe",
+    )
     timing_frame.grid(row=4, column=0, sticky="ew", pady=(0, 12))
     timing_frame.columnconfigure(1, weight=1)
 
     timing_fields = (
-        ("Listen timeout", listen_timeout_var, "seconds to wait for speech"),
+        ("Listen timeout", listen_timeout_var, "blank keeps listening until stopped"),
         ("Queue timeout", queue_timeout_var, "safety timeout in seconds"),
         ("Pause threshold", pause_threshold_var, "seconds of silence per phrase"),
     )
     for row, (label, variable, helper) in enumerate(timing_fields):
         ttk.Label(timing_frame, text=label).grid(row=row, column=0, sticky="w")
-        tk.Spinbox(
+        ttk.Entry(
             timing_frame,
-            from_=0.1,
-            to=120,
-            increment=0.1,
             textvariable=variable,
             width=10,
         ).grid(row=row, column=1, sticky="w", padx=(14, 10), pady=(0, 8))
@@ -281,11 +303,14 @@ def run_settings_window(settings, sr_module=None, script_path=None):
     status_label = ttk.Label(container, textvariable=status_var)
     status_label.grid(row=5, column=0, sticky="w", pady=(0, 12))
 
-    button_bar = ttk.Frame(container)
+    button_bar = ttk.Frame(container, style="App.TFrame")
     button_bar.grid(row=6, column=0, sticky="ew")
     button_bar.columnconfigure(0, weight=1)
 
     def parse_positive_float(label, value):
+        if label == "Listen timeout" and not value.strip():
+            return None
+
         try:
             parsed = float(value)
         except ValueError as e:

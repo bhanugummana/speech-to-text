@@ -33,6 +33,20 @@ class ConfigUiTest(unittest.TestCase):
         self.assertIn("--language", args)
         self.assertIn("hi-IN", args)
 
+    def test_build_dictation_args_omits_blank_listen_timeout(self):
+        args = build_dictation_args({
+            "auto_punctuation": False,
+            "device_index": None,
+            "language": "en-US",
+            "listen_timeout": None,
+            "mode": "Type and copy",
+            "overlay": True,
+            "pause_threshold": 1.0,
+            "queue_timeout": 15.0,
+        })
+
+        self.assertNotIn("--listen-timeout", args)
+
 
 if __name__ == "__main__":
     unittest.main()

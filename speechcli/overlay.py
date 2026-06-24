@@ -29,6 +29,18 @@ def run_overlay_window():
 
     command_queue = queue.Queue()
     parent_pid = overlay_parent_pid(sys.argv)
+    palette = {
+        "bg": "#0f172a",
+        "panel": "#111827",
+        "panel_2": "#1f2937",
+        "text": "#f8fafc",
+        "muted": "#94a3b8",
+        "line": "#334155",
+        "blue": "#38bdf8",
+        "green": "#22c55e",
+        "amber": "#f59e0b",
+        "red": "#ef4444",
+    }
 
     def read_commands():
         for line in sys.stdin:
@@ -44,9 +56,10 @@ def run_overlay_window():
 
         command, _, value = line.partition("\t")
         if command == "status":
-            status_label.config(text=value or "Listening")
+            set_status(value or "Listening")
         elif command == "text":
-            preview_label.config(text=value[-70:] if value else "")
+            preview_text = value[-110:] if value else "Dictated text will appear here."
+            preview_label.config(text=preview_text)
 
     def poll_commands():
         while True:
@@ -79,6 +92,86 @@ def run_overlay_window():
                 pass
         root.destroy()
 
+    def set_status(message):
+        normalized = message.lower()
+        color = palette["green"]
+        if "transcrib" in normalized:
+            color = palette["blue"]
+        elif "error" in normalized or "retry" in normalized:
+            color = palette["amber"]
+        elif "stop" in normalized:
+            color = palette["red"]
+
+        status_dot.itemconfig(status_dot_shape, fill=color)
+        status_label.config(text=message)
+
+    def draw_settings_icon(canvas, color):
+        canvas.create_oval(9, 9, 27, 27, outline=color, width=2)
+        canvas.create_oval(15, 15, 21, 21, outline=color, width=2)
+        for x1, y1, x2, y2 in (
+            (18, 4, 18, 9),
+            (18, 27, 18, 32),
+            (4, 18, 9, 18),
+            (27, 18, 32, 18),
+        ):
+            canvas.create_line(x1, y1, x2, y2, fill=color, width=2, capstyle="round")
+
+    def draw_stop_icon(canvas, color):
+        canvas.create_rectangle(11, 11, 25, 25, fill=color, outline=color)
+
+    def icon_button(parent, label, draw_icon, command, danger=False):
+        normal_bg = "#7f1d1d" if danger else palette["panel_2"]
+        hover_bg = "#991b1b" if danger else "#273449"
+        fg = "#fecaca" if danger else palette["text"]
+        frame = tk.Frame(
+            parent,
+            bg=normal_bg,
+            cursor="hand2",
+            highlightthickness=1,
+            highlightbackground="#3f4b61",
+        )
+        frame.pack(side="left", padx=(0, 8))
+
+        canvas = tk.Canvas(
+            frame,
+            width=36,
+            height=36,
+            bg=normal_bg,
+            bd=0,
+            highlightthickness=0,
+        )
+        canvas.pack(side="left", padx=(10, 0), pady=8)
+        draw_icon(canvas, fg)
+
+        text_label = tk.Label(
+            frame,
+            text=label,
+            bg=normal_bg,
+            fg=fg,
+            font=("Sans", 10, "bold"),
+            padx=10,
+        )
+        text_label.pack(side="left", padx=(0, 12))
+
+        def set_button_bg(bg):
+            frame.config(bg=bg)
+            canvas.config(bg=bg)
+            text_label.config(bg=bg)
+
+        def handle_enter(event):
+            set_button_bg(hover_bg)
+
+        def handle_leave(event):
+            set_button_bg(normal_bg)
+
+        for widget in (frame, canvas, text_label):
+            widget.bind("<Button-1>", lambda event: command())
+            widget.bind("<Return>", lambda event: command())
+            widget.bind("<Enter>", handle_enter)
+            widget.bind("<Leave>", handle_leave)
+
+        return frame
+
     root = tk.Tk()
     root.title("SpeechCLI")
     root.attributes("-topmost", True)
@@ -89,68 +182,81 @@ def run_overlay_window():
     except tk.TclError:
         pass
 
-    frame = tk.Frame(root, bg="#202124", padx=18, pady=12)
+    frame = tk.Frame(
+        root,
+        bg=palette["bg"],
+        padx=18,
+        pady=16,
+        highlightthickness=1,
+        highlightbackground=palette["line"],
+    )
     frame.pack(fill="both", expand=True)
 
-    status_label = tk.Label(
-        frame,
-        text="Listening",
-        bg="#202124",
-        fg="#ffffff",
-        font=("Sans", 12, "bold"),
+    header = tk.Frame(frame, bg=palette["bg"])
+    header.pack(fill="x")
+
+    status_pill = tk.Frame(header, bg=palette["panel_2"], padx=10, pady=6)
+    status_pill.pack(side="left")
+
+    status_dot = tk.Canvas(
+        status_pill,
+        width=14,
+        height=14,
+        bg=palette["panel_2"],
+        bd=0,
+        highlightthickness=0,
     )
-    status_label.pack(anchor="w")
+    status_dot.pack(side="left", padx=(0, 8))
+    status_dot_shape = status_dot.create_oval(3, 3, 11, 11, fill=palette["green"], outline="")
+
+    status_label = tk.Label(
+        status_pill,
+        text="Listening",
+        bg=palette["panel_2"],
+        fg=palette["text"],
+        font=("Sans", 11, "bold"),
+    )
+    status_label.pack(side="left")
+
+    title_label = tk.Label(
+        frame,
+        text="SpeechCLI",
+        bg=palette["bg"],
+        fg=palette["text"],
+        font=("Sans", 16, "bold"),
+    )
+    title_label.pack(anchor="w", pady=(16, 2))
 
     preview_label = tk.Label(
         frame,
-        text="",
-        bg="#202124",
-        fg="#d0d0d0",
-        font=("Sans", 10),
-        width=42,
+        text="Dictated text will appear here.",
+        bg=palette["panel"],
+        fg=palette["text"],
+        font=("Sans", 11),
+        width=46,
+        height=3,
         anchor="w",
+        justify="left",
+        padx=14,
+        pady=10,
+        wraplength=430,
     )
-    preview_label.pack(anchor="w", pady=(4, 0))
+    preview_label.pack(anchor="w", fill="x", pady=(8, 0))
 
     hint_label = tk.Label(
         frame,
-        text="Press shortcut again or say stop dictation",
-        bg="#202124",
-        fg="#9aa0a6",
+        text="Listening stays on until you press Stop.",
+        bg=palette["bg"],
+        fg=palette["muted"],
         font=("Sans", 9),
     )
-    hint_label.pack(anchor="w", pady=(7, 0))
+    hint_label.pack(anchor="w", pady=(10, 0))
 
-    button_row = tk.Frame(frame, bg="#202124")
-    button_row.pack(anchor="e", pady=(10, 0))
+    button_row = tk.Frame(frame, bg=palette["bg"])
+    button_row.pack(anchor="e", pady=(14, 0))
 
-    settings_button = tk.Button(
-        button_row,
-        text="Settings",
-        command=open_settings,
-        bg="#3c4043",
-        fg="#ffffff",
-        activebackground="#5f6368",
-        activeforeground="#ffffff",
-        relief="flat",
-        padx=10,
-        pady=4,
-    )
-    settings_button.pack(side="left", padx=(0, 8))
-
-    stop_button = tk.Button(
-        button_row,
-        text="Stop",
-        command=stop_dictation,
-        bg="#f1f3f4",
-        fg="#202124",
-        activebackground="#e8eaed",
-        activeforeground="#202124",
-        relief="flat",
-        padx=12,
-        pady=4,
-    )
-    stop_button.pack(side="left")
+    icon_button(button_row, "Settings", draw_settings_icon, open_settings)
+    icon_button(button_row, "Stop", draw_stop_icon, stop_dictation, danger=True)
 
     root.update_idletasks()
     width = root.winfo_width()

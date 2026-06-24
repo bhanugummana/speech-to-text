@@ -27,7 +27,7 @@ Supports:
 - 🔁 **Continuous Background Dictation**: Speak continuously and it will transcribe and type phrase-by-phrase.
 - 📝 **Dictation Commands**: Say punctuation and layout commands like "comma", "period", "new line", and "new paragraph".
 - 🎛️ **Shortcut Toggling**: Press the shortcut to start, press again to stop.
-- ⏱️ **Inactivity Auto-Stop**: Automatically stops listening if you don't speak for 10 seconds.
+- ⏱️ **User-Controlled Listening**: Keeps listening until you click Stop in the popup.
 - 🔔 **Integrated System Notifications**: Shows "Listening..." and "Completed" alerts natively.
 - 🪟 **Listening Overlay**: Optional always-on-top status window while dictation is active.
 - 🧰 **Settings Window**: Change microphone, language, output mode, punctuation, overlay, and timing from a native UI.
@@ -131,7 +131,7 @@ speechcli --tray
 speechcli-tray
 ```
 
-If you choose the tray option during `./install.sh`, SpeechCLI creates a tray launcher, adds it to desktop autostart, and starts it when a desktop session is available. Click the tray icon or choose **Speak now** to listen once, type into the currently focused input field, and copy the dictated text to the clipboard.
+If you choose the tray option during `./install.sh`, SpeechCLI creates a tray launcher, adds it to desktop autostart, and starts it when a desktop session is available. Left-click the tray icon to start listening, type into the currently focused input field, and copy the dictated text to the clipboard. Right-click the tray icon to open the menu with **Speak now**, **Settings**, and **Quit**.
 
 ## Print recognized text
 
@@ -200,7 +200,7 @@ speechcli --type --listen-timeout 10 --pause-threshold 1.0
 
 Useful options:
 
-- `--listen-timeout`: seconds to wait for speech to start before auto-stopping
+- `--listen-timeout`: optional seconds to wait for speech to start before retrying; by default SpeechCLI keeps listening until stopped
 - `--pause-threshold`: seconds of silence that ends the current dictated phrase
 - `--queue-timeout`: safety timeout while waiting for recorded audio chunks
 
@@ -283,7 +283,6 @@ SpeechCLI converts common spoken dictation commands before typing or copying tex
 | `go to end`, `move to end`, or `press end` | presses End |
 | `move left`, `move right`, `move up`, or `move down` | presses the matching arrow key |
 | `press escape` or `escape` | presses Escape |
-| `stop dictation`, `stop listening`, or `cancel dictation` | stops listening |
 
 Example:
 

@@ -20,7 +20,8 @@ def tray_dependency_message():
 def tray_dictation_values(settings):
     values = settings_to_form_values(settings)
     values["mode"] = TRAY_MODE
-    values["overlay"] = bool(values.get("overlay", True))
+    values["listen_timeout"] = None
+    values["overlay"] = True
     return values
 
 
@@ -94,7 +95,7 @@ def run_tray_app(settings, script_path=None):
     icon = pystray.Icon(
         "speechcli",
         image,
-        "SpeechCLI",
+        "SpeechCLI - left click to speak",
         pystray.Menu(
             pystray.MenuItem("Speak now", start_dictation, default=True),
             pystray.MenuItem("Settings", open_settings),

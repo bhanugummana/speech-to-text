@@ -7,6 +7,8 @@ class TrayTest(unittest.TestCase):
     def test_tray_forces_type_and_copy_mode(self):
         values = tray_dictation_values({
             "language": "hi-IN",
+            "listen_timeout": 5.0,
+            "overlay": False,
             "should_copy": False,
             "should_output": True,
             "should_type": False,
@@ -14,6 +16,8 @@ class TrayTest(unittest.TestCase):
 
         self.assertEqual(values["mode"], "Type and copy")
         self.assertEqual(values["language"], "hi-IN")
+        self.assertIsNone(values["listen_timeout"])
+        self.assertTrue(values["overlay"])
 
     def test_tray_command_types_and_copies_into_focused_field(self):
         command = build_tray_dictation_command({
@@ -30,6 +34,7 @@ class TrayTest(unittest.TestCase):
         self.assertIn("--copy", command)
         self.assertNotIn("--output", command)
         self.assertIn("--overlay", command)
+        self.assertNotIn("--listen-timeout", command)
         self.assertIn("--language", command)
         self.assertIn("kn-IN", command)
         self.assertIn("--device-index", command)

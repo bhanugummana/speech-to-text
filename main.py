@@ -44,6 +44,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 
 from speechcli.audio import create_microphone, print_microphones
 from speechcli.config_ui import run_settings_window
@@ -140,21 +141,50 @@ def background_listener(recognizer, source, listen_timeout, verbose):
     global running
     if sr is None:
         return
-    try:
-        with source:
-            while running:
-                try:
-                    audio = recognizer.listen(source, timeout=listen_timeout)
-                    if running:
-                        audio_queue.put(audio)
-                except sr.WaitTimeoutError:
-                    if running:
-                        audio_queue.put(None)
-                    break
-    except Exception as e:
-        sys.stderr.write(f"\nListener thread error: {e}\n")
-        if running:
-            audio_queue.put(None)
+
+    while running:
+        try:
+            with source:
+                while running:
+                    try:
+                        audio = recognizer.listen(source, timeout=listen_timeout)
+                        if running:
+                            audio_queue.put(audio)
+                    except sr.WaitTimeoutError:
+                        log("No speech yet; still listening.", verbose)
+                        continue
+        except Exception as e:
+            sys.stderr.write(f"\nListener thread error: {e}\n")
+            if running:
+                audio_queue.put(("listener_error", str(e)))
+                time.sleep(1)
+
+
+def queue_get_timeout(queue_timeout):
+    return queue_timeout if queue_timeout and queue_timeout > 0 else 1
+
+
+def handle_listener_error(error_message, overlay_process, verbose):
+    update_overlay(overlay_process, "status", "Audio error - retrying")
+    log(f"Audio error, retrying: {error_message}", verbose)
+
+
+def recognize_audio(recognizer, audio, language, overlay_process, verbose):
+    while running:
+        try:
+            log("Transcribing chunk...", verbose)
+            update_overlay(overlay_process, "status", "Transcribing...")
+            return recognizer.recognize_google(audio, language=language)
+        except sr.UnknownValueError:
+            update_overlay(overlay_process, "status", "Listening")
+            log("Speech not understood in chunk", verbose)
+            return None
+        except sr.RequestError as e:
+            update_overlay(overlay_process, "status", "Recognition error - retrying")
+            sys.stderr.write(f"\nAPI Error: {e}\n")
+            time.sleep(1)
+
+    return None
 
 
 def require_runtime_dependencies(args):
@@ -273,8 +303,8 @@ def main():
             options.verbose,
         )
 
-        send_notification("SpeechCLI", "🎤 Listening...")
-        log("🎤 Listening...", options.verbose)
+        send_notification("SpeechCLI", "Listening...")
+        log("Listening...", options.verbose)
         overlay_process = start_overlay(
             options.overlay,
             __file__,
@@ -294,22 +324,35 @@ def main():
         listener_thread.start()
 
         while True:
-            audio = audio_queue.get(block=True, timeout=options.queue_timeout)
-
-            if audio is None:
-                log(
-                    f"Timeout: {options.listen_timeout:g} seconds of inactivity.",
-                    options.verbose,
+            try:
+                audio = audio_queue.get(
+                    block=True,
+                    timeout=queue_get_timeout(options.queue_timeout),
                 )
-                break
+            except queue.Empty:
+                update_overlay(overlay_process, "status", "Listening")
+                continue
+
+            if (
+                isinstance(audio, tuple)
+                and len(audio) == 2
+                and audio[0] == "listener_error"
+            ):
+                handle_listener_error(audio[1], overlay_process, options.verbose)
+                audio_queue.task_done()
+                continue
 
             try:
-                log("Transcribing chunk...", options.verbose)
-                update_overlay(overlay_process, "status", "Transcribing...")
-                raw_text = recognizer.recognize_google(
+                raw_text = recognize_audio(
+                    recognizer,
                     audio,
-                    language=options.language,
+                    options.language,
+                    overlay_process,
+                    options.verbose,
                 )
+                if raw_text is None:
+                    continue
+
                 should_stop = process_audio_result(
                     raw_text,
                     dictation_state,
@@ -322,24 +365,16 @@ def main():
                 )
                 if should_stop:
                     break
-            except sr.UnknownValueError:
-                update_overlay(overlay_process, "status", "Listening")
-                log("Speech not understood in chunk", options.verbose)
-            except sr.RequestError as e:
-                update_overlay(overlay_process, "status", "Recognition error")
-                sys.stderr.write(f"\nAPI Error: {e}\n")
             finally:
                 audio_queue.task_done()
 
     except KeyboardInterrupt:
         log("SpeechCLI: Interrupted.", options.verbose)
-    except queue.Empty:
-        log("Timeout: 10 seconds of inactivity (queue empty).", options.verbose)
     finally:
         running = False
         cleanup_pid_file(options.verbose)
         stop_overlay(overlay_process)
-        send_notification("SpeechCLI", "✅ Speech recognition completed")
+        send_notification("SpeechCLI", "Speech recognition stopped")
 
         if options.should_output or not any([options.should_type, options.should_copy]):
             print()
