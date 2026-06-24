@@ -31,6 +31,7 @@ Supports:
 - 🔔 **Integrated System Notifications**: Shows "Listening..." and "Completed" alerts natively.
 - 🪟 **Listening Overlay**: Optional always-on-top status window while dictation is active.
 - 🧰 **Settings Window**: Change microphone, language, output mode, punctuation, overlay, and timing from a native UI.
+- 📌 **System Tray App**: Optional tray icon that starts dictation into the focused input field and copies text to the clipboard.
 - ⌨️ Auto-type into active window
 - 📋 Copy to clipboard
 - 🖥️ CLI-first workflow
@@ -82,6 +83,7 @@ The installer automatically:
 - Detects your Linux distribution
 - Installs system dependencies
 - Installs Python dependencies
+- Asks whether to install the optional system tray app
 - Creates global `speechcli` command
 - Configures:
   - Bash
@@ -121,6 +123,15 @@ speechcli-settings
 This opens a native settings window where you can choose whether dictation types into the active app, copies to the clipboard, prints in the terminal, or types and copies. The same window also lets you choose the microphone, language, punctuation, overlay, and listening timing, then save those choices as defaults.
 
 After installation, you can also open **SpeechCLI Settings** from your desktop app launcher.
+
+## Use system tray app
+
+```bash
+speechcli --tray
+speechcli-tray
+```
+
+If you choose the tray option during `./install.sh`, SpeechCLI creates a tray launcher, adds it to desktop autostart, and starts it when a desktop session is available. Click the tray icon or choose **Speak now** to listen once, type into the currently focused input field, and copy the dictated text to the clipboard.
 
 ## Print recognized text
 
@@ -167,7 +178,6 @@ speechcli --type --copy --auto-punctuation --overlay
 ```
 
 Shows a small always-on-top status window while dictation is active. The overlay shows whether SpeechCLI is listening or transcribing and previews the current dictated session text.
-
 ---
 
 ## Choose recognition language

@@ -74,6 +74,11 @@ def parse_args(argv, defaults=None):
     )
     parser.add_argument("--verbose", action="store_true")
     parser.add_argument(
+        "--tray",
+        action="store_true",
+        help="Run the SpeechCLI system tray app.",
+    )
+    parser.add_argument(
         "--settings-ui",
         "--gui",
         action="store_true",

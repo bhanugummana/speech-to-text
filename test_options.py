@@ -130,6 +130,11 @@ class OptionsTest(unittest.TestCase):
 
         self.assertTrue(options.settings_ui)
 
+    def test_tray_flag(self):
+        options = parse_args(["--tray"])
+
+        self.assertTrue(options.tray)
+
 
 if __name__ == "__main__":
     unittest.main()

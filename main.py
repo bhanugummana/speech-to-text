@@ -66,6 +66,7 @@ from speechcli.overlay import (
     update_overlay,
 )
 from speechcli.settings import load_settings, save_settings
+from speechcli.tray import run_tray_app
 
 
 PID_FILE = "/tmp/speechcli.pid"
@@ -232,6 +233,9 @@ def main():
 
     if options.settings_ui:
         sys.exit(run_settings_window(saved_settings, sr, __file__))
+
+    if options.tray:
+        sys.exit(run_tray_app(saved_settings, __file__))
 
     if options.show_settings:
         print_settings(saved_settings)
