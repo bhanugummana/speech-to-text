@@ -6,12 +6,14 @@ from speechcli.config_ui import build_dictation_args, settings_to_form_values
 class ConfigUiTest(unittest.TestCase):
     def test_saved_type_mode_is_shown_in_form_values(self):
         values = settings_to_form_values({
+            "save_unclear_audio": True,
             "should_copy": False,
             "should_output": False,
             "should_type": True,
         })
 
         self.assertEqual(values["mode"], "Type into active app")
+        self.assertTrue(values["save_unclear_audio"])
 
     def test_build_dictation_args_includes_selected_controls(self):
         args = build_dictation_args({
@@ -24,6 +26,7 @@ class ConfigUiTest(unittest.TestCase):
             "pause_threshold": 0.6,
             "phrase_time_limit": 22.0,
             "queue_timeout": 11.0,
+            "save_unclear_audio": True,
         })
 
         self.assertEqual(args[:2], ["--type", "--copy"])
@@ -35,6 +38,7 @@ class ConfigUiTest(unittest.TestCase):
         self.assertIn("hi-IN", args)
         self.assertIn("--phrase-time-limit", args)
         self.assertIn("22.0", args)
+        self.assertIn("--save-unclear-audio", args)
 
     def test_build_dictation_args_omits_blank_listen_timeout(self):
         args = build_dictation_args({
@@ -47,10 +51,12 @@ class ConfigUiTest(unittest.TestCase):
             "pause_threshold": 1.0,
             "phrase_time_limit": 22.0,
             "queue_timeout": 15.0,
+            "save_unclear_audio": False,
         })
 
         self.assertNotIn("--listen-timeout", args)
         self.assertIn("--phrase-time-limit", args)
+        self.assertIn("--no-save-unclear-audio", args)
 
 
 if __name__ == "__main__":

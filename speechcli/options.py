@@ -3,7 +3,7 @@ import argparse
 
 DEFAULT_LANGUAGE = "en-US"
 DEFAULT_LISTEN_TIMEOUT = None
-DEFAULT_PHRASE_TIME_LIMIT = 22.0
+DEFAULT_PHRASE_TIME_LIMIT = 12.0
 DEFAULT_QUEUE_TIMEOUT = 15.0
 DEFAULT_PAUSE_THRESHOLD = 1.0
 ACTION_KEYS = ("should_type", "should_copy", "should_output")
@@ -97,6 +97,12 @@ def parse_args(argv, defaults=None):
         action=argparse.BooleanOptionalAction,
         default=default_value(defaults, "overlay", False),
         help="Enable or disable the listening overlay.",
+    )
+    parser.add_argument(
+        "--save-unclear-audio",
+        action=argparse.BooleanOptionalAction,
+        default=default_value(defaults, "save_unclear_audio", False),
+        help="Save unclear audio chunks to the user cache for later review.",
     )
     parser.add_argument(
         "--save-settings",

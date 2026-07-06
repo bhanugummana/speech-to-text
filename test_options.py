@@ -57,13 +57,16 @@ class OptionsTest(unittest.TestCase):
         options = parse_args([
             "--no-auto-punctuation",
             "--no-overlay",
+            "--no-save-unclear-audio",
         ], {
             "auto_punctuation": True,
             "overlay": True,
+            "save_unclear_audio": True,
         })
 
         self.assertFalse(options.auto_punctuation)
         self.assertFalse(options.overlay)
+        self.assertFalse(options.save_unclear_audio)
 
     def test_default_listener_timing(self):
         options = parse_args([])
@@ -110,6 +113,7 @@ class OptionsTest(unittest.TestCase):
             "--copy",
             "--auto-punctuation",
             "--overlay",
+            "--save-unclear-audio",
             "--save-settings",
             "--show-settings",
         ])
@@ -118,6 +122,7 @@ class OptionsTest(unittest.TestCase):
         self.assertTrue(options.should_copy)
         self.assertTrue(options.auto_punctuation)
         self.assertTrue(options.overlay)
+        self.assertTrue(options.save_unclear_audio)
         self.assertTrue(options.save_settings)
         self.assertTrue(options.show_settings)
 

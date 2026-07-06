@@ -133,7 +133,7 @@ speechcli-tray
 
 If you choose the tray option during `./install.sh`, SpeechCLI creates a tray launcher, adds it to desktop autostart, and starts it when a desktop session is available. Left-click the tray icon to start listening, type into the currently focused input field, and copy the dictated text to the clipboard. Right-click the tray icon to open the menu with **Speak now**, **Settings**, and **Quit**.
 
-SpeechCLI keeps recording while completed audio chunks are sent for transcription. A chunk is sent when you pause long enough for `--pause-threshold` or when it reaches `--phrase-time-limit`, which defaults to 22 seconds.
+SpeechCLI keeps recording while completed audio chunks are sent for transcription. A chunk is sent when you pause long enough for `--pause-threshold` or when it reaches `--phrase-time-limit`, which defaults to 12 seconds. Shorter chunks are usually more reliable for avoiding partial or missing recognition results. When you stop dictation, SpeechCLI stops recording new audio, waits briefly for the final in-flight phrase to finish, and transcribes captured chunks instead of dropping them immediately.
 
 ## Print recognized text
 
@@ -156,6 +156,8 @@ speechcli --copy
 ```bash
 speechcli --type
 ```
+
+Typing mode inserts each recognized chunk with a clipboard paste when clipboard support is available, then restores the previous clipboard content. This is more reliable than simulating every character and helps avoid dropped words in active desktop fields. If clipboard paste is unavailable, SpeechCLI falls back to simulated typing.
 
 ---
 
@@ -198,15 +200,16 @@ Use a BCP-47 language code supported by Google Speech Recognition. The default i
 
 ```bash
 speechcli --type --listen-timeout 10 --pause-threshold 1.0
-speechcli --type --phrase-time-limit 22 --pause-threshold 1.0
+speechcli --type --phrase-time-limit 12 --pause-threshold 1.0
 ```
 
 Useful options:
 
 - `--listen-timeout`: optional seconds to wait for speech to start before retrying; by default SpeechCLI keeps listening until stopped
-- `--phrase-time-limit`: maximum seconds per audio chunk before transcription starts; default is 22
+- `--phrase-time-limit`: maximum seconds per audio chunk before transcription starts; default is 12
 - `--pause-threshold`: seconds of silence that ends the current dictated phrase
 - `--queue-timeout`: safety timeout while waiting for recorded audio chunks
+- `--save-unclear-audio`: optional opt-in archive for chunks that still cannot be recognized after retries; saved under `~/.cache/speechcli/unclear-audio`
 
 ---
 

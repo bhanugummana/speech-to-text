@@ -71,8 +71,16 @@ from speechcli.tray import run_tray_app
 
 
 PID_FILE = "/tmp/speechcli.pid"
+CACHE_DIR = os.path.join(
+    os.environ.get("XDG_CACHE_HOME", os.path.join(os.path.expanduser("~"), ".cache")),
+    "speechcli",
+)
+UNCLEAR_AUDIO_DIR = os.path.join(CACHE_DIR, "unclear-audio")
 audio_queue = queue.Queue()
 running = True
+MAX_SHUTDOWN_SETTLE_SECONDS = 5.0
+MIN_SHUTDOWN_SETTLE_SECONDS = 0.75
+TRANSCRIPT_CONFIDENCE_MARGIN = 0.12
 
 
 def log(message, verbose=False):
@@ -152,8 +160,7 @@ def background_listener(recognizer, source, listen_timeout, phrase_time_limit, v
                             timeout=listen_timeout,
                             phrase_time_limit=phrase_time_limit,
                         )
-                        if running:
-                            audio_queue.put(audio)
+                        audio_queue.put(audio)
                     except sr.WaitTimeoutError:
                         log("No speech yet; still listening.", verbose)
                         continue
@@ -173,19 +180,159 @@ def handle_listener_error(error_message, overlay_process, verbose):
     log(f"Audio error, retrying: {error_message}", verbose)
 
 
-def recognize_audio(recognizer, audio, language, overlay_process, verbose):
-    while running:
+def save_unclear_audio(audio, reason, directory=UNCLEAR_AUDIO_DIR):
+    if audio is None or not hasattr(audio, "get_wav_data"):
+        return None
+
+    safe_reason = "".join(
+        character if character.isalnum() or character in ("-", "_") else "-"
+        for character in str(reason)
+    ).strip("-") or "unclear"
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    filename = f"{timestamp}-{time.time_ns()}-{safe_reason}.wav"
+    path = os.path.join(directory, filename)
+
+    try:
+        os.makedirs(directory, exist_ok=True)
+        with open(path, "wb") as f:
+            f.write(audio.get_wav_data())
+    except Exception:
+        return None
+
+    return path
+
+
+def handle_unclear_audio(
+    audio,
+    reason,
+    overlay_process,
+    verbose,
+    archive_unclear_audio=False,
+):
+    if archive_unclear_audio:
+        path = save_unclear_audio(audio, reason)
+        if path:
+            update_overlay(overlay_process, "status", "Chunk archived")
+            log(f"Saved unclear audio chunk for review: {path}", verbose)
+        else:
+            update_overlay(overlay_process, "status", "Chunk unclear")
+            log("Speech not understood in chunk", verbose)
+    else:
+        update_overlay(overlay_process, "status", "Chunk unclear")
+        log("Speech not understood in chunk", verbose)
+    return None
+
+
+def select_best_transcript(response):
+    if not isinstance(response, dict):
+        return None
+
+    alternatives = response.get("alternative")
+    if not alternatives:
+        return None
+
+    candidates = []
+    for index, alternative in enumerate(alternatives):
+        transcript = str(alternative.get("transcript", "")).strip()
+        if not transcript:
+            continue
+
+        confidence = alternative.get("confidence")
+        try:
+            confidence_score = float(confidence)
+        except (TypeError, ValueError):
+            confidence_score = -1.0
+
+        candidates.append({
+            "confidence": confidence_score,
+            "index": index,
+            "text": transcript,
+            "word_count": len(transcript.split()),
+        })
+
+    if not candidates:
+        return None
+
+    best_confidence = max(candidate["confidence"] for candidate in candidates)
+    near_best = [
+        candidate
+        for candidate in candidates
+        if candidate["confidence"] >= best_confidence - TRANSCRIPT_CONFIDENCE_MARGIN
+    ]
+
+    selected = max(
+        near_best,
+        key=lambda candidate: (
+            candidate["word_count"],
+            candidate["confidence"],
+            -candidate["index"],
+        ),
+    )
+    return selected["text"]
+
+
+def recognize_audio(
+    recognizer,
+    audio,
+    language,
+    overlay_process,
+    verbose,
+    allow_after_stop=False,
+    max_request_retries=None,
+    archive_unclear_audio=False,
+):
+    unknown_attempts = 0
+    request_errors = 0
+    while running or allow_after_stop:
         try:
             log("Transcribing chunk...", verbose)
             update_overlay(overlay_process, "status", "Transcribing...")
-            return recognizer.recognize_google(audio, language=language)
+            response = recognizer.recognize_google(
+                audio,
+                language=language,
+                show_all=True,
+            )
+            transcript = select_best_transcript(response)
+            if transcript:
+                return transcript
+
+            unknown_attempts += 1
+            if unknown_attempts >= 2:
+                return handle_unclear_audio(
+                    audio,
+                    "empty-recognition",
+                    overlay_process,
+                    verbose,
+                    archive_unclear_audio,
+                )
+
+            update_overlay(overlay_process, "status", "Retrying unclear chunk")
+            time.sleep(0.25)
         except sr.UnknownValueError:
-            update_overlay(overlay_process, "status", "Listening")
-            log("Speech not understood in chunk", verbose)
-            return None
+            unknown_attempts += 1
+            if unknown_attempts >= 2:
+                return handle_unclear_audio(
+                    audio,
+                    "unknown-value",
+                    overlay_process,
+                    verbose,
+                    archive_unclear_audio,
+                )
+
+            update_overlay(overlay_process, "status", "Retrying unclear chunk")
+            time.sleep(0.25)
         except sr.RequestError as e:
+            request_errors += 1
             update_overlay(overlay_process, "status", "Recognition error - retrying")
             sys.stderr.write(f"\nAPI Error: {e}\n")
+            if max_request_retries is not None and request_errors >= max_request_retries:
+                return handle_unclear_audio(
+                    audio,
+                    "request-error",
+                    overlay_process,
+                    verbose,
+                    archive_unclear_audio,
+                )
             time.sleep(1)
 
     return None
@@ -255,6 +402,118 @@ def process_audio_result(
     return False
 
 
+def is_listener_error_item(audio):
+    return (
+        isinstance(audio, tuple)
+        and len(audio) == 2
+        and audio[0] == "listener_error"
+    )
+
+
+def process_audio_queue_item(
+    audio,
+    recognizer,
+    dictation_state,
+    dictation_options,
+    options,
+    overlay_process,
+    allow_after_stop=False,
+):
+    if is_listener_error_item(audio):
+        handle_listener_error(audio[1], overlay_process, options.verbose)
+        return False
+
+    raw_text = recognize_audio(
+        recognizer,
+        audio,
+        options.language,
+        overlay_process,
+        options.verbose,
+        allow_after_stop=allow_after_stop,
+        max_request_retries=2 if allow_after_stop else None,
+        archive_unclear_audio=bool(getattr(options, "save_unclear_audio", False)),
+    )
+    if raw_text is None:
+        return False
+
+    return process_audio_result(
+        raw_text,
+        dictation_state,
+        dictation_options,
+        overlay_process,
+        options.should_type,
+        options.should_copy,
+        options.should_output,
+        options.verbose,
+    )
+
+
+def drain_pending_audio(
+    pending_queue,
+    recognizer,
+    dictation_state,
+    dictation_options,
+    options,
+    overlay_process,
+):
+    drained = 0
+    while True:
+        try:
+            audio = pending_queue.get_nowait()
+        except queue.Empty:
+            break
+
+        try:
+            should_stop = process_audio_queue_item(
+                audio,
+                recognizer,
+                dictation_state,
+                dictation_options,
+                options,
+                overlay_process,
+                allow_after_stop=True,
+            )
+            if not is_listener_error_item(audio):
+                drained += 1
+            if should_stop:
+                break
+        finally:
+            pending_queue.task_done()
+
+    if drained:
+        log(f"Processed {drained} queued audio chunk(s) before shutdown.", options.verbose)
+
+    return drained
+
+
+def shutdown_settle_timeout(options):
+    try:
+        pause_threshold = float(options.pause_threshold)
+    except (AttributeError, TypeError, ValueError):
+        pause_threshold = 1.0
+
+    try:
+        phrase_time_limit = float(options.phrase_time_limit)
+    except (AttributeError, TypeError, ValueError):
+        phrase_time_limit = 0.0
+
+    return min(
+        MAX_SHUTDOWN_SETTLE_SECONDS,
+        max(
+            MIN_SHUTDOWN_SETTLE_SECONDS,
+            pause_threshold + 0.75,
+            phrase_time_limit,
+        ),
+    )
+
+
+def wait_for_listener_to_settle(listener_thread, options):
+    if listener_thread is None or not listener_thread.is_alive():
+        return
+
+    listener_thread.join(timeout=shutdown_settle_timeout(options))
+
+
 def main():
     global running
     args = sys.argv[1:]
@@ -287,23 +546,25 @@ def main():
         return
 
     overlay_process = None
+    listener_thread = None
 
     handle_existing_instance()
 
-    recognizer = sr.Recognizer()
+    listener_recognizer = sr.Recognizer()
+    recognition_recognizer = sr.Recognizer()
     dictation_state = DictationState()
     dictation_options = DictationOptions(
         auto_punctuation=options.auto_punctuation,
     )
-    recognizer.pause_threshold = options.pause_threshold
+    listener_recognizer.pause_threshold = options.pause_threshold
 
     source = create_microphone(sr, options.device_index)
     try:
         log("Calibrating microphone for ambient noise...", options.verbose)
         with source:
-            recognizer.adjust_for_ambient_noise(source, duration=0.5)
+            listener_recognizer.adjust_for_ambient_noise(source, duration=0.5)
         log(
-            f"Adjusted energy threshold to: {recognizer.energy_threshold}",
+            f"Adjusted energy threshold to: {listener_recognizer.energy_threshold}",
             options.verbose,
         )
 
@@ -318,7 +579,7 @@ def main():
         listener_thread = threading.Thread(
             target=background_listener,
             args=(
-                recognizer,
+                listener_recognizer,
                 source,
                 options.listen_timeout,
                 options.phrase_time_limit,
@@ -338,35 +599,14 @@ def main():
                 update_overlay(overlay_process, "status", "Listening")
                 continue
 
-            if (
-                isinstance(audio, tuple)
-                and len(audio) == 2
-                and audio[0] == "listener_error"
-            ):
-                handle_listener_error(audio[1], overlay_process, options.verbose)
-                audio_queue.task_done()
-                continue
-
             try:
-                raw_text = recognize_audio(
-                    recognizer,
+                should_stop = process_audio_queue_item(
                     audio,
-                    options.language,
-                    overlay_process,
-                    options.verbose,
-                )
-                if raw_text is None:
-                    continue
-
-                should_stop = process_audio_result(
-                    raw_text,
+                    recognition_recognizer,
                     dictation_state,
                     dictation_options,
+                    options,
                     overlay_process,
-                    options.should_type,
-                    options.should_copy,
-                    options.should_output,
-                    options.verbose,
                 )
                 if should_stop:
                     break
@@ -375,6 +615,17 @@ def main():
 
     except KeyboardInterrupt:
         log("SpeechCLI: Interrupted.", options.verbose)
+        running = False
+        update_overlay(overlay_process, "status", "Finishing captured speech")
+        wait_for_listener_to_settle(listener_thread, options)
+        drain_pending_audio(
+            audio_queue,
+            recognition_recognizer,
+            dictation_state,
+            dictation_options,
+            options,
+            overlay_process,
+        )
     finally:
         running = False
         cleanup_pid_file(options.verbose)

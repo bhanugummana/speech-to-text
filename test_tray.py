@@ -31,6 +31,7 @@ class TrayTest(unittest.TestCase):
             "pause_threshold": 0.7,
             "phrase_time_limit": 22.0,
             "queue_timeout": 12.0,
+            "save_unclear_audio": True,
         }, "/app/main.py")
 
         self.assertIn("--type", command)
@@ -44,6 +45,7 @@ class TrayTest(unittest.TestCase):
         self.assertIn("kn-IN", command)
         self.assertIn("--device-index", command)
         self.assertIn("2", command)
+        self.assertIn("--save-unclear-audio", command)
 
 
 if __name__ == "__main__":

@@ -14,6 +14,7 @@ SETTING_KEYS = (
     "pause_threshold",
     "phrase_time_limit",
     "queue_timeout",
+    "save_unclear_audio",
     "should_copy",
     "should_output",
     "should_type",

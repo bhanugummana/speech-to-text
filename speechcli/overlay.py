@@ -8,6 +8,17 @@ import threading
 
 OVERLAY_WINDOW_ARG = "--overlay-window"
 OVERLAY_PARENT_PID_ARG = "--parent-pid"
+PREVIEW_TEXT_LIMIT = 240
+
+
+def format_preview_text(value):
+    if not value:
+        return "Dictated text will appear here."
+
+    if len(value) <= PREVIEW_TEXT_LIMIT:
+        return value
+
+    return "..." + value[-(PREVIEW_TEXT_LIMIT - 3):]
 
 
 def overlay_parent_pid(argv):
@@ -30,16 +41,18 @@ def run_overlay_window():
     command_queue = queue.Queue()
     parent_pid = overlay_parent_pid(sys.argv)
     palette = {
-        "bg": "#0f172a",
-        "panel": "#111827",
-        "panel_2": "#1f2937",
-        "text": "#f8fafc",
-        "muted": "#94a3b8",
-        "line": "#334155",
-        "blue": "#38bdf8",
-        "green": "#22c55e",
-        "amber": "#f59e0b",
-        "red": "#ef4444",
+        "bg": "#f4f7f5",
+        "panel": "#ffffff",
+        "panel_2": "#eef7f2",
+        "text": "#17201c",
+        "muted": "#5f6f66",
+        "line": "#d4ded8",
+        "teal": "#0f8f73",
+        "blue": "#2563eb",
+        "green": "#16a34a",
+        "amber": "#b7791f",
+        "red": "#dc2626",
+        "red_soft": "#fff1f2",
     }
 
     def read_commands():
@@ -58,7 +71,7 @@ def run_overlay_window():
         if command == "status":
             set_status(value or "Listening")
         elif command == "text":
-            preview_text = value[-150:] if value else "Dictated text will appear here."
+            preview_text = format_preview_text(value)
             canvas.itemconfig(preview_text_item, text=preview_text)
 
     def poll_commands():
@@ -95,19 +108,35 @@ def run_overlay_window():
     def set_status(message):
         normalized = message.lower()
         color = palette["green"]
-        helper = "Listening continuously"
+        status_label = "Listening"
+        helper = "Capturing speech"
         if "transcrib" in normalized:
             color = palette["blue"]
-            helper = "Processing the latest audio chunk"
+            status_label = "Transcribing"
+            helper = "Processing chunk"
+        elif "finish" in normalized:
+            color = palette["blue"]
+            status_label = "Finishing"
+            helper = "Finishing captured speech"
         elif "error" in normalized or "retry" in normalized:
             color = palette["amber"]
-            helper = "Still recording; retrying transcription"
+            status_label = "Retrying"
+            helper = "Retrying chunk"
+        elif "unclear" in normalized:
+            color = palette["amber"]
+            status_label = "Unclear"
+            helper = "Chunk unclear"
+        elif "archiv" in normalized:
+            color = palette["amber"]
+            status_label = "Archived"
+            helper = "Saved unclear chunk"
         elif "stop" in normalized:
             color = palette["red"]
+            status_label = "Stopping"
             helper = "Stopping dictation"
 
         canvas.itemconfig(status_dot_shape, fill=color)
-        canvas.itemconfig(status_text_item, text=message)
+        canvas.itemconfig(status_text_item, text=status_label)
         canvas.itemconfig(helper_text_item, text=helper)
 
     def draw_settings_icon(canvas, color):
@@ -158,15 +187,15 @@ def run_overlay_window():
     def canvas_button(x, y, label, icon_drawer, command, danger=False):
         tag = f"button_{label.lower()}"
         bg_tag = f"{tag}_bg"
-        fill = "#172033" if not danger else "#7f1d1d"
-        hover_fill = "#22314d" if not danger else "#991b1b"
-        outline = "#2f405f" if not danger else "#b91c1c"
-        text_color = palette["text"] if not danger else "#fee2e2"
-        rounded_rect(canvas, x, y, x + 132, y + 48, 16, fill=fill, outline=outline, width=1, tags=(tag, bg_tag))
+        fill = "#f8fbf9" if not danger else palette["red_soft"]
+        hover_fill = "#e7f5ee" if not danger else "#ffe4e6"
+        outline = palette["line"] if not danger else "#fecdd3"
+        text_color = palette["text"] if not danger else "#991b1b"
+        rounded_rect(canvas, x, y, x + 128, y + 46, 14, fill=fill, outline=outline, width=1, tags=(tag, bg_tag))
         icon_drawer(canvas, x + 14, y + 8, text_color, tag)
         canvas.create_text(
             x + 54,
-            y + 24,
+            y + 23,
             text=label,
             fill=text_color,
             font=("Sans", 10, "bold"),
@@ -191,7 +220,7 @@ def run_overlay_window():
     root.overrideredirect(True)
     root.resizable(False, False)
     try:
-        root.attributes("-alpha", 0.97)
+        root.attributes("-alpha", 0.98)
     except tk.TclError:
         pass
 
@@ -200,8 +229,8 @@ def run_overlay_window():
     except tk.TclError:
         pass
 
-    window_width = 560
-    window_height = 270
+    window_width = 540
+    window_height = 252
     canvas = tk.Canvas(
         root,
         width=window_width,
@@ -224,68 +253,60 @@ def run_overlay_window():
     canvas.bind("<ButtonPress-1>", start_drag)
     canvas.bind("<B1-Motion>", move_window)
 
-    rounded_rect(canvas, 10, 10, window_width - 10, window_height - 10, 26, fill="#0b1220", outline="#243044", width=1)
-    rounded_rect(canvas, 24, 24, window_width - 24, 92, 22, fill="#111c2e", outline="#29364d", width=1)
-    canvas.create_oval(44, 42, 74, 72, fill="#2563eb", outline="#38bdf8", width=2)
-    canvas.create_rectangle(56, 68, 62, 80, fill="#38bdf8", outline="#38bdf8")
-    canvas.create_line(48, 82, 70, 82, fill="#94a3b8", width=2, capstyle="round")
+    rounded_rect(canvas, 10, 10, window_width - 10, window_height - 10, 24, fill=palette["panel"], outline=palette["line"], width=1)
+    rounded_rect(canvas, 24, 24, window_width - 24, 88, 18, fill=palette["panel_2"], outline="#d9e6de", width=1)
+    canvas.create_oval(42, 41, 72, 71, fill=palette["teal"], outline="#a7f3d0", width=2)
+    canvas.create_rectangle(54, 68, 60, 78, fill=palette["teal"], outline=palette["teal"])
+    canvas.create_line(47, 80, 68, 80, fill="#8aa59a", width=2, capstyle="round")
     canvas.create_text(
-        92,
-        42,
+        88,
+        39,
         text="SpeechCLI",
         fill=palette["text"],
-        font=("Sans", 18, "bold"),
+        font=("Sans", 17, "bold"),
         anchor="nw",
     )
     helper_text_item = canvas.create_text(
-        92,
-        68,
-        text="Listening continuously",
+        88,
+        64,
+        text="Capturing speech",
         fill=palette["muted"],
         font=("Sans", 10),
         anchor="nw",
     )
 
-    rounded_rect(canvas, 382, 38, 520, 76, 16, fill="#172033", outline="#2f405f", width=1)
-    status_dot_shape = canvas.create_oval(402, 53, 414, 65, fill=palette["green"], outline="")
+    rounded_rect(canvas, 378, 37, 500, 73, 14, fill="#ffffff", outline=palette["line"], width=1)
+    status_dot_shape = canvas.create_oval(396, 51, 408, 63, fill=palette["green"], outline="")
     status_text_item = canvas.create_text(
-        424,
-        59,
+        418,
+        57,
         text="Listening",
         fill=palette["text"],
         font=("Sans", 11, "bold"),
         anchor="w",
     )
 
-    rounded_rect(canvas, 24, 106, window_width - 24, 196, 22, fill="#121a2a", outline="#29364d", width=1)
+    rounded_rect(canvas, 24, 102, window_width - 24, 192, 18, fill="#fbfdfc", outline=palette["line"], width=1)
     canvas.create_text(
         44,
-        126,
-        text="Transcript preview",
-        fill="#94a3b8",
+        121,
+        text="Latest transcript",
+        fill=palette["muted"],
         font=("Sans", 9, "bold"),
         anchor="nw",
     )
     preview_text_item = canvas.create_text(
         44,
-        150,
+        145,
         text="Dictated text will appear here.",
         fill=palette["text"],
         font=("Sans", 12),
         anchor="nw",
-        width=470,
+        width=452,
     )
 
-    canvas.create_text(
-        34,
-        222,
-        text="Recording continues while chunks are transcribed.",
-        fill="#94a3b8",
-        font=("Sans", 10),
-        anchor="w",
-    )
-    canvas_button(274, 206, "Settings", draw_canvas_settings_icon, open_settings)
-    canvas_button(416, 206, "Stop", draw_canvas_stop_icon, stop_dictation, danger=True)
+    canvas_button(266, 196, "Settings", draw_canvas_settings_icon, open_settings)
+    canvas_button(404, 196, "Stop", draw_canvas_stop_icon, stop_dictation, danger=True)
 
     root.update_idletasks()
     screen_width = root.winfo_screenwidth()
